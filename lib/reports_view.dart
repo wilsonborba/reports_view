@@ -1,6 +1,7 @@
 library;
 
 export 'src/charts/bar_charts.dart';
+export 'src/charts/chart_frame.dart';
 export 'src/charts/chart_parts.dart';
 export 'src/charts/data_table_view.dart';
 export 'src/charts/donut_chart.dart';

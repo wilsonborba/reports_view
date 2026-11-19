@@ -52,8 +52,21 @@ class FieldInfo {
   final String role;
   final String? unit;
   final int? decimals;
+  final String? denominatorField;
+  final String? denominatorText;
+  final String missingMeans;
 
-  const FieldInfo({required this.name, required this.label, required this.type, required this.role, this.unit, this.decimals});
+  const FieldInfo({
+    required this.name,
+    required this.label,
+    required this.type,
+    required this.role,
+    this.unit,
+    this.decimals,
+    this.denominatorField,
+    this.denominatorText,
+    this.missingMeans = 'no_data',
+  });
 
   bool get isDimension => role == 'dimension';
   bool get isNumeric => const {'integer', 'float', 'percent', 'hour', 'latitude', 'longitude'}.contains(type);
@@ -66,7 +79,49 @@ class FieldInfo {
         role: (j['role'] ?? 'measure') as String,
         unit: j['unit'] as String?,
         decimals: (j['decimals'] as num?)?.toInt(),
+        denominatorField: j['denominator_field'] as String?,
+        denominatorText: j['denominator_text'] as String?,
+        missingMeans: (j['missing_means'] ?? 'no_data') as String,
       );
+}
+
+class DatasetMeta {
+  final String source;
+  final String sourceUrl;
+  final String periodStart;
+  final String periodEnd;
+  final String timezone;
+  final String freshnessMode;
+  final int expectedRefreshMinutes;
+  final int updatedAt;
+  final String tier;
+
+  const DatasetMeta({
+    this.source = '',
+    this.sourceUrl = '',
+    this.periodStart = '',
+    this.periodEnd = '',
+    this.timezone = 'UTC',
+    this.freshnessMode = 'live',
+    this.expectedRefreshMinutes = 60,
+    this.updatedAt = 0,
+    this.tier = 'sample',
+  });
+
+  static DatasetMeta? fromJson(dynamic j) {
+    if (j is! Map) return null;
+    return DatasetMeta(
+      source: '${j['source'] ?? ''}',
+      sourceUrl: '${j['source_url'] ?? ''}',
+      periodStart: '${j['period_start'] ?? ''}',
+      periodEnd: '${j['period_end'] ?? ''}',
+      timezone: '${j['timezone'] ?? 'UTC'}',
+      freshnessMode: '${j['freshness_mode'] ?? 'live'}',
+      expectedRefreshMinutes: (j['expected_refresh_minutes'] as num?)?.toInt() ?? 60,
+      updatedAt: (j['updated_at'] as num?)?.toInt() ?? 0,
+      tier: '${j['tier'] ?? 'sample'}',
+    );
+  }
 }
 
 class FilterOption {
@@ -110,6 +165,7 @@ class DatasetDescriptor {
   final String dataTier;
   final bool canView;
   final String visibility;
+  final DatasetMeta? meta;
 
   const DatasetDescriptor({
     required this.datasetId,
@@ -121,6 +177,7 @@ class DatasetDescriptor {
     this.dataTier = 'sample',
     this.canView = true,
     this.visibility = 'public',
+    this.meta,
   });
 
   FieldInfo? field(String name) {
@@ -140,6 +197,7 @@ class DatasetDescriptor {
         dataTier: (j['data_tier'] ?? 'sample') as String,
         canView: (j['can_view'] as bool?) ?? true,
         visibility: (j['visibility'] ?? 'public') as String,
+        meta: DatasetMeta.fromJson(j['meta']),
       );
 }
 

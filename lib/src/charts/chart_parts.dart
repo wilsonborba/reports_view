@@ -12,7 +12,21 @@ class ChartParts {
         getDrawingHorizontalLine: (_) => FlLine(color: p.border.withValues(alpha: 0.5), strokeWidth: 1),
       );
 
-  static AxisTitles leftTitles(ReportPalette p, {double reserved = 44}) => AxisTitles(
+  static String labelWithUnit(FieldInfo f) {
+    final unit = f.unit?.trim() ?? '';
+    return unit.isEmpty ? f.label : '${f.label} ($unit)';
+  }
+
+  static AxisTitles leftTitles(ReportPalette p, {double reserved = 44, String? axisTitle}) => AxisTitles(
+        axisNameWidget: axisTitle == null || axisTitle.isEmpty
+            ? null
+            : Text(
+                axisTitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 10.5, color: p.textMuted),
+              ),
+        axisNameSize: axisTitle == null || axisTitle.isEmpty ? 16 : 18,
         sideTitles: SideTitles(
           showTitles: true,
           reservedSize: reserved,
@@ -24,9 +38,23 @@ class ChartParts {
       );
 
   /// Bottom labels for category or time positions 0..n-1, thinned to about [maxLabels].
-  static AxisTitles bottomLabels(ReportPalette p, List<String> labels, {int maxLabels = 12}) {
+  static AxisTitles bottomLabels(
+    ReportPalette p,
+    List<String> labels, {
+    int maxLabels = 12,
+    String? axisTitle,
+  }) {
     final step = (labels.length / maxLabels).ceil().clamp(1, 1 << 20);
     return AxisTitles(
+      axisNameWidget: axisTitle == null || axisTitle.isEmpty
+          ? null
+          : Text(
+              axisTitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 10.5, color: p.textMuted),
+            ),
+      axisNameSize: axisTitle == null || axisTitle.isEmpty ? 16 : 18,
       sideTitles: SideTitles(
         showTitles: true,
         reservedSize: 28,
