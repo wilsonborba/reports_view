@@ -1,5 +1,6 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../models/report.dart';
 import '../themes/report_palette.dart';
 import 'format.dart';
@@ -105,36 +106,54 @@ class Legend extends StatelessWidget {
     final list = entries ?? [for (final (label, color) in items) LegendItem(label, label, color)];
     return Wrap(spacing: 14, runSpacing: 6, children: [
       for (final e in list)
-        MouseRegion(
+        FocusableActionDetector(
           key: Key('legend_${e.key}'),
-          cursor: onToggle == null ? MouseCursor.defer : SystemMouseCursors.click,
-          onEnter: onHover == null ? null : (_) => onHover!(e.key),
-          onExit: onHover == null ? null : (_) => onHover!(null),
+          mouseCursor: onToggle == null ? MouseCursor.defer : SystemMouseCursors.click,
+          onShowHoverHighlight: onHover == null ? null : (hovering) => onHover!(hovering ? e.key : null),
+          shortcuts: onToggle == null
+              ? null
+              : const {
+                  SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
+                  SingleActivator(LogicalKeyboardKey.space): ActivateIntent(),
+                },
+          actions: onToggle == null
+              ? null
+              : {
+                  ActivateIntent: CallbackAction<ActivateIntent>(
+                    onInvoke: (_) {
+                      onToggle!(e.key);
+                      return null;
+                    },
+                  ),
+                },
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: onToggle == null ? null : () => onToggle!(e.key),
-            child: Opacity(
-              opacity: hidden.contains(e.key) ? 0.45 : (highlighted == null || highlighted == e.key ? 1 : 0.6),
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                Container(
-                  width: e.line ? 14 : 10,
-                  height: e.line ? 3 : 10,
-                  decoration: BoxDecoration(
-                    color: hidden.contains(e.key) ? Colors.transparent : e.color,
-                    border: hidden.contains(e.key) ? Border.all(color: e.color) : null,
-                    borderRadius: BorderRadius.circular(2),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+              child: Opacity(
+                opacity: hidden.contains(e.key) ? 0.45 : (highlighted == null || highlighted == e.key ? 1 : 0.6),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Container(
+                    width: e.line ? 14 : 10,
+                    height: e.line ? 3 : 10,
+                    decoration: BoxDecoration(
+                      color: hidden.contains(e.key) ? Colors.transparent : e.color,
+                      border: hidden.contains(e.key) ? Border.all(color: e.color) : null,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  e.label,
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    color: p.textMuted,
-                    decoration: hidden.contains(e.key) ? TextDecoration.lineThrough : null,
+                  const SizedBox(width: 6),
+                  Text(
+                    e.label,
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: p.textMuted,
+                      decoration: hidden.contains(e.key) ? TextDecoration.lineThrough : null,
+                    ),
                   ),
-                ),
-              ]),
+                ]),
+              ),
             ),
           ),
         ),

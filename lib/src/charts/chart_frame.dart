@@ -2,13 +2,15 @@ import 'package:flutter/material.dart';
 import '../models/report.dart';
 import '../themes/report_palette.dart';
 import 'chart_parts.dart';
+import 'data_table_view.dart';
+import 'format.dart';
 
 enum ChartFrameMode { card, full, embed }
 
 enum ChartFrameState { ready, loading, empty, restricted, error, offline }
 
-/// Standard chart frame wrapping any visual (C1, C2, C18, C19, C22).
-class ChartFrame extends StatelessWidget {
+/// Standard chart frame wrapping any visual (C1, C2, C16, C18, C19, C22).
+class ChartFrame extends StatefulWidget {
   final DatasetPage page;
   final Widget child;
   final ChartFrameMode mode;
@@ -18,6 +20,7 @@ class ChartFrame extends StatelessWidget {
   final String? snapshotDate;
   final bool showAxisTitles;
   final bool showAsTable;
+  final bool enableTableToggle;
   final VoidCallback? onToggleTable;
   final VoidCallback? onSeeAll;
   final VoidCallback? onRetry;
@@ -34,6 +37,7 @@ class ChartFrame extends StatelessWidget {
     this.snapshotDate,
     this.showAxisTitles = true,
     this.showAsTable = false,
+    this.enableTableToggle = true,
     this.onToggleTable,
     this.onSeeAll,
     this.onRetry,
@@ -48,6 +52,49 @@ class ChartFrame extends StatelessWidget {
       y == null ? null : ChartParts.labelWithUnit(y),
     );
   }
+
+  static String semanticsSummary(DatasetPage page, {String? title}) {
+    final resolvedTitle = (title ?? page.descriptor.title).trim();
+    final label = resolvedTitle.isEmpty ? page.descriptor.datasetId : resolvedTitle;
+    final count = page.rows.length;
+    final m = page.descriptor.fields.where((f) => f.isNumeric).firstOrNull;
+    if (m == null || page.rows.isEmpty) {
+      return '$label, $count rows';
+    }
+    final vals = [
+      for (final r in page.rows) ?measureValue(r[m.name], m),
+    ];
+    if (vals.isEmpty) {
+      return '$label, $count rows, no numeric values';
+    }
+    var lo = vals.first, hi = vals.first;
+    for (final v in vals) {
+      if (v < lo) lo = v;
+      if (v > hi) hi = v;
+    }
+    return '$label, $count rows, ${m.label} from ${valueWithUnit(lo, m)} to ${valueWithUnit(hi, m)}';
+  }
+
+  @override
+  State<ChartFrame> createState() => _ChartFrameState();
+}
+
+class _ChartFrameState extends State<ChartFrame> {
+  late bool _localTable = widget.showAsTable;
+
+  bool get _showingTable => widget.onToggleTable != null ? widget.showAsTable : _localTable;
+
+  DatasetPage get page => widget.page;
+  ChartFrameMode get mode => widget.mode;
+  ChartFrameState get state => widget.state;
+  String? get title => widget.title;
+  String? get subtitle => widget.subtitle;
+  String? get snapshotDate => widget.snapshotDate;
+  bool get showAxisTitles => widget.showAxisTitles;
+  VoidCallback? get onSeeAll => widget.onSeeAll;
+  VoidCallback? get onRetry => widget.onRetry;
+  double? get fixedHeight => widget.fixedHeight;
+  Widget get child => _showingTable ? DataTableView(page: page) : widget.child;
 
   String _sourceText() {
     final s = page.descriptor.meta?.source.trim() ?? '';
@@ -157,8 +204,8 @@ class ChartFrame extends StatelessWidget {
   }
 
   Widget _buildAxisWrappedChild(ReportPalette p) {
-    if (!showAxisTitles) return child;
-    final (xTitle, yTitle) = axisTitlesFor(page);
+    if (!showAxisTitles || _showingTable) return child;
+    final (xTitle, yTitle) = ChartFrame.axisTitlesFor(page);
     if (xTitle == null && yTitle == null) return child;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -197,14 +244,17 @@ class ChartFrame extends StatelessWidget {
     final resolvedSubtitle = (subtitle ?? page.descriptor.description).trim();
     final tier = _tierLabel();
 
-    return Container(
-      decoration: BoxDecoration(
-        color: p.surface,
-        border: Border.all(color: p.border),
-        borderRadius: BorderRadius.circular(mode == ChartFrameMode.embed ? 6 : 8),
-      ),
-      padding: EdgeInsets.all(mode == ChartFrameMode.embed ? 10 : 14),
-      child: Column(
+    return Semantics(
+      label: ChartFrame.semanticsSummary(page, title: title),
+      container: true,
+      child: Container(
+        decoration: BoxDecoration(
+          color: p.surface,
+          border: Border.all(color: p.border),
+          borderRadius: BorderRadius.circular(mode == ChartFrameMode.embed ? 6 : 8),
+        ),
+        padding: EdgeInsets.all(mode == ChartFrameMode.embed ? 10 : 14),
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -249,11 +299,11 @@ class ChartFrame extends StatelessWidget {
                   style: TextStyle(color: p.textPrimary, fontSize: 11, fontWeight: FontWeight.w500),
                 ),
               ),
-              if (onToggleTable != null) ...[
+              if (widget.onToggleTable != null || (widget.enableTableToggle && state == ChartFrameState.ready)) ...[
                 const SizedBox(width: 6),
                 TextButton(
-                  onPressed: onToggleTable,
-                  child: Text(showAsTable ? 'Show as chart' : 'Show as table'),
+                  onPressed: widget.onToggleTable ?? () => setState(() => _localTable = !_localTable),
+                  child: Text(_showingTable ? 'Show as chart' : 'Show as table'),
                 ),
               ],
               if (mode == ChartFrameMode.card && onSeeAll != null) ...[
@@ -276,6 +326,7 @@ class ChartFrame extends StatelessWidget {
           ),
         ],
       ),
+    ),
     );
   }
 }
