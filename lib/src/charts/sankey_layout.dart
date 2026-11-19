@@ -65,8 +65,8 @@ class SankeyLayout {
     final keys = <List<String>>[];
     final raws = <int, Map<String, dynamic>>{};
     for (final r in rows) {
-      final v = asDouble(r[measure.name]) ?? 0;
-      if (v <= 0) continue;
+      final v = measureValue(r[measure.name], measure);
+      if (v == null || v <= 0) continue;
       values.add(v);
       keys.add([for (final f in stages) '${r[f.name] ?? ''}']);
       for (var s = 0; s < stages.length; s++) {

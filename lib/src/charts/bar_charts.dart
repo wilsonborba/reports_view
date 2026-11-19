@@ -59,13 +59,23 @@ class _VerticalBarChartState extends State<VerticalBarChart> {
     final rows = widget.page.rows;
     final labels = [for (final r in rows) ChartParts.xLabel(r[widget.x.name], widget.x)];
     final color = widget.color ?? p.seriesAt(0);
-    final range = widget.range ?? YRange.of([for (final r in rows) asDouble(r[widget.measure.name]) ?? 0], zero: true);
+    final range = widget.range ??
+        YRange.of(
+          [
+            for (final r in rows)
+              ?measureValue(r[widget.measure.name], widget.measure)
+          ],
+          zero: true,
+        );
     Widget chart(bool showAxis, double? perPoint, int? hovered, double t) => BarChart(
           duration: Duration.zero,
           BarChartData(
             minY: range.min,
             maxY: range.max,
             gridData: ChartParts.grid(p),
+            extraLinesData: range.min < 0
+                ? ExtraLinesData(horizontalLines: [HorizontalLine(y: 0, color: p.border, strokeWidth: 1.2)])
+                : null,
             borderData: FlBorderData(show: false),
             titlesData: FlTitlesData(
               leftTitles: showAxis ? ChartParts.leftTitles(p, reserved: widget.leftReserved) : ChartParts.none,
@@ -85,20 +95,30 @@ class _VerticalBarChartState extends State<VerticalBarChart> {
                 getTooltipItem: (group, gi, rod, ri) => BarTooltipItem(
                   '${labels[group.x]}\n',
                   ChartTooltip.base(p),
-                  children: ChartTooltip.row(p, valueWithUnit(rows[group.x][widget.measure.name], widget.measure), widget.measure.label),
+                  children: ChartTooltip.row(
+                    p,
+                    measureValueWithUnit(rows[group.x][widget.measure.name], widget.measure),
+                    widget.measure.label,
+                  ),
                 ),
               ),
             ),
             barGroups: [
               for (var i = 0; i < rows.length; i++)
-                BarChartGroupData(x: i, barRods: [
-                  BarChartRodData(
-                    toY: (asDouble(rows[i][widget.measure.name]) ?? 0) * staggered(t, i, rows.length.clamp(0, 40)),
-                    color: color.withValues(alpha: dimmed(hovered != null, hovered == i)),
-                    width: perPoint == null ? (300 / rows.length).clamp(3.0, 24.0) : (perPoint * 0.6).clamp(3.0, 24.0),
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
-                  ),
-                ]),
+                BarChartGroupData(
+                  x: i,
+                  barRods: [
+                    if (measureValue(rows[i][widget.measure.name], widget.measure) case final v?)
+                      BarChartRodData(
+                        toY: v * staggered(t, i, rows.length.clamp(0, 40)),
+                        color: color.withValues(alpha: dimmed(hovered != null, hovered == i)),
+                        width: perPoint == null ? (300 / rows.length).clamp(3.0, 24.0) : (perPoint * 0.6).clamp(3.0, 24.0),
+                        borderRadius: v >= 0
+                            ? const BorderRadius.vertical(top: Radius.circular(4))
+                            : const BorderRadius.vertical(bottom: Radius.circular(4)),
+                      ),
+                  ],
+                ),
             ],
           ),
         );
@@ -152,7 +172,8 @@ class _StackedBarChartState extends State<StackedBarChart> {
       final xk = '${r[x.name]}';
       final ck = '${r[category.name]}';
       xs.putIfAbsent(xk, () => r[x.name]);
-      final v = asDouble(r[measure.name]) ?? 0;
+      final v = measureValue(r[measure.name], measure);
+      if (v == null) continue;
       totals[ck] = (totals[ck] ?? 0) + v;
       (values[xk] ??= {})[ck] = v;
     }
@@ -321,8 +342,8 @@ class _RankingBarsState extends State<RankingBars> {
                     Expanded(
                       flex: 5,
                       child: LayoutBuilder(builder: (context, c) {
-                        final v = asDouble(rows[i][measure.name]) ?? 0;
-                        final w = maxValue <= 0 ? 0.0 : c.maxWidth * (v / maxValue) * staggered(t, i, rows.length.clamp(0, 40));
+                        final v = measureValue(rows[i][measure.name], measure);
+                        final w = (v == null || maxValue <= 0) ? 0.0 : c.maxWidth * (v / maxValue) * staggered(t, i, rows.length.clamp(0, 40));
                         return Stack(children: [
                           Container(height: 10, decoration: BoxDecoration(color: p.surfaceAlt, borderRadius: BorderRadius.circular(5))),
                           Container(height: 10, width: w, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(5))),
@@ -511,6 +532,9 @@ class SmallMultiples extends StatelessWidget {
 /// Full bar length of a ranking: the largest value, but at least 100 for percent
 /// measures so a rate bar reads against the whole 0 to 100% range.
 double rankingScale(List<Map<String, dynamic>> rows, FieldInfo measure) {
-  final top = rows.fold<double>(0, (m, r) => (asDouble(r[measure.name]) ?? 0) > m ? (asDouble(r[measure.name]) ?? 0) : m);
+  final top = rows.fold<double>(0, (m, r) {
+    final v = measureValue(r[measure.name], measure);
+    return (v != null && v > m) ? v : m;
+  });
   return measure.type == 'percent' && top < 100 ? 100 : top;
 }

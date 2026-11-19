@@ -51,7 +51,10 @@ class _SeriesLineChartState extends State<SeriesLineChart> {
           show: !_hidden.contains(measures[m].name),
           spots: [
             for (var i = 0; i < rows.length; i++)
-              if (asDouble(rows[i][measures[m].name]) != null) FlSpot(xv(i), asDouble(rows[i][measures[m].name])!),
+              if (measureValue(rows[i][measures[m].name], measures[m]) case final v?)
+                FlSpot(xv(i), v)
+              else
+                FlSpot.nullSpot,
           ],
           isCurved: numericX,
           curveSmoothness: 0.2,
@@ -69,7 +72,7 @@ class _SeriesLineChartState extends State<SeriesLineChart> {
           for (final m in measures)
             if (!_hidden.contains(m.name))
               for (final r in rows)
-                if (asDouble(r[m.name]) != null) asDouble(r[m.name])!
+                ?measureValue(r[m.name], m)
         ]);
     final scroll = widget.pointWidth != null && !numericX;
     Widget chart(bool showAxis, double? perPoint) => LineChart(

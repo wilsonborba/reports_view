@@ -38,7 +38,10 @@ class _DonutChartState extends State<DonutChart> {
     final label = widget.label, value = widget.value;
     final colors = SeriesColorScope.of(context);
     final keys = [for (final r in rows) '${r[label.name]}'];
-    final totals = {for (final r in rows) '${r[label.name]}': asDouble(r[value.name]) ?? 0};
+    final totals = <String, double>{
+      for (final r in rows)
+        '${r[label.name]}': ?measureValue(r[value.name], value),
+    };
     final total = totals.values.fold<double>(0, (a, b) => a + b);
     final segments = foldCategories(keys, totals, DonutChart.maxSegments - 1, domain: colors.domain(label.name));
     final kept = segments.where((k) => k != otherKey).toSet();

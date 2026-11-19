@@ -66,6 +66,21 @@ double? asDouble(dynamic v) {
   return null;
 }
 
+/// Numeric value of a measure cell, honoring `field.missingMeans` (`no_data` vs `zero`).
+double? measureValue(dynamic v, FieldInfo? f) {
+  final n = asDouble(v);
+  if (n != null) return n;
+  if (v == null && f?.missingMeans == 'zero') return 0.0;
+  return null;
+}
+
+/// Display text of a measure cell with its unit, or [missingLabel] when missing (`no_data`).
+String measureValueWithUnit(dynamic v, FieldInfo? f, {String missingLabel = 'No data'}) {
+  final n = measureValue(v, f);
+  if (n == null) return missingLabel;
+  return valueWithUnit(n, f);
+}
+
 /// Display text of a value for its field (type, decimals). Without the unit.
 String valueText(dynamic v, FieldInfo? f) {
   if (v == null) return '';

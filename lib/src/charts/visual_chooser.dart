@@ -167,7 +167,9 @@ class VisualChooser {
           final totals = <String, double>{};
           for (final r in page.rows) {
             final k = '${r[dims[1].name]}';
-            totals[k] = (totals[k] ?? 0) + (asDouble(r[ms.first.name]) ?? 0);
+            if (measureValue(r[ms.first.name], ms.first) case final v?) {
+              totals[k] = (totals[k] ?? 0) + v;
+            }
           }
           if (totals.length > ReportPalette.slots) {
             final cats = totals.keys.toList()..sort((a, b) => totals[b]!.compareTo(totals[a]!));
