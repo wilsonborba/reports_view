@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -16,6 +17,38 @@ class ChartParts {
   static String labelWithUnit(FieldInfo f) {
     final unit = f.unit?.trim() ?? '';
     return unit.isEmpty ? f.label : '${f.label} ($unit)';
+  }
+
+  /// Nice axis step from {1, 2, 2.5, 5} * 10^n yielding ~3 to 7 ticks (C5).
+  static double niceInterval(double min, double max, {int targetTicks = 5}) {
+    final span = (max - min).abs();
+    if (span <= 0) return 1;
+    final raw = span / targetTicks.clamp(2, 7);
+    final exp = (math.log(raw) / math.ln10).floor();
+    final mag = math.pow(10, exp).toDouble();
+    final norm = raw / mag;
+    final nice = norm <= 1.0
+        ? 1.0
+        : norm <= 2.0
+            ? 2.0
+            : norm <= 2.5
+                ? 2.5
+                : norm <= 5.0
+                    ? 5.0
+                    : 10.0;
+    return nice * mag;
+  }
+
+  /// WCAG 2.2 relative luminance contrast ratio between two colors (C12).
+  static double contrastRatio(Color a, Color b) {
+    double lum(Color c) {
+      double ch(double v) => v <= 0.03928 ? v / 12.92 : math.pow((v + 0.055) / 1.055, 2.4).toDouble();
+      return 0.2126 * ch(c.r) + 0.7152 * ch(c.g) + 0.0722 * ch(c.b);
+    }
+
+    final l1 = lum(a), l2 = lum(b);
+    final hi = math.max(l1, l2), lo = math.min(l1, l2);
+    return (hi + 0.05) / (lo + 0.05);
   }
 
   static AxisTitles leftTitles(ReportPalette p, {double reserved = 44, String? axisTitle}) => AxisTitles(
@@ -63,7 +96,19 @@ class ChartParts {
         getTitlesWidget: (v, meta) {
           final i = v.round();
           if (i < 0 || i >= labels.length || i % step != 0 || (v - i).abs() > 0.01) return const SizedBox.shrink();
-          return SideTitleWidget(meta: meta, child: Text(labels[i], style: TextStyle(fontSize: 10.5, color: p.textMuted)));
+          return SideTitleWidget(
+            meta: meta,
+            child: SizedBox(
+              width: 64,
+              child: Text(
+                labels[i],
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 10.5, color: p.textMuted),
+              ),
+            ),
+          );
         },
       ),
     );

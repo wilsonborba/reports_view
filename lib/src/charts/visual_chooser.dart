@@ -49,6 +49,9 @@ class VisualChooser {
       // A donut shows parts of a whole; rates and shares do not add up to one.
       final main = ms.firstWhere((f) => f.type != 'percent', orElse: () => ms.first);
       if (main.type == 'percent') return Visual.hbar;
+      final hasLongLabel =
+          page.rows.any((r) => valueText(r[dims.first.name], dims.first).length > 14);
+      if (hasLongLabel) return Visual.hbar;
       return page.rows.length <= 6 ? Visual.donut : Visual.hbar;
     }
     return Visual.table;
