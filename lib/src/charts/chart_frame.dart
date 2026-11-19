@@ -25,6 +25,7 @@ class ChartFrame extends StatefulWidget {
   final VoidCallback? onSeeAll;
   final VoidCallback? onRetry;
   final double? fixedHeight;
+  final String? errorMessage;
 
   const ChartFrame({
     super.key,
@@ -42,6 +43,7 @@ class ChartFrame extends StatefulWidget {
     this.onSeeAll,
     this.onRetry,
     this.fixedHeight,
+    this.errorMessage,
   });
 
   static (String?, String?) axisTitlesFor(DatasetPage page) {
@@ -94,6 +96,7 @@ class _ChartFrameState extends State<ChartFrame> {
   VoidCallback? get onSeeAll => widget.onSeeAll;
   VoidCallback? get onRetry => widget.onRetry;
   double? get fixedHeight => widget.fixedHeight;
+  String? get errorMessage => widget.errorMessage;
   Widget get child => _showingTable ? DataTableView(page: page) : widget.child;
 
   String _sourceText() {
@@ -184,7 +187,8 @@ class _ChartFrameState extends State<ChartFrame> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'Could not load chart',
+                errorMessage ?? 'Could not load chart',
+                textAlign: TextAlign.center,
                 style: TextStyle(color: p.negative, fontSize: 12),
               ),
               if (onRetry != null) ...[

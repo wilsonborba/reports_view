@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import '../models/report.dart';
+import '../models/template.dart';
 import '../themes/report_palette.dart';
 import 'bar_charts.dart';
+import 'chart_frame.dart';
 import 'data_table_view.dart';
 import 'donut_chart.dart';
 import 'format.dart';
@@ -106,6 +108,91 @@ class VisualChooser {
     if (height == null) return chart;
     // Inside a fixed card the content never overflows: what does not fit scrolls.
     return SizedBox(height: height, child: SingleChildScrollView(child: chart));
+  }
+
+  /// Maps a template `visual` string to a [Visual] enum value.
+  static Visual visualFromName(String name) => switch (name.trim()) {
+        'kpi' => Visual.kpi,
+        'line' => Visual.line,
+        'bar' => Visual.bar,
+        'stackedBar' || 'stacked_bar' => Visual.stackedBar,
+        'hbar' => Visual.hbar,
+        'donut' => Visual.donut,
+        'combo' => Visual.combo,
+        'curve' => Visual.curve,
+        'map' => Visual.map,
+        'table' => Visual.table,
+        'sankey' => Visual.sankey,
+        _ => Visual.auto,
+      };
+
+  /// Validates [binding] against [template] slots and [page] fields before drawing.
+  /// Shows [ChartFrameState.error] with the validation error when validation fails.
+  static Widget buildTemplate({
+    required DatasetPage page,
+    required VisualTemplate template,
+    required CardVisualBinding binding,
+    ChartFrameMode mode = ChartFrameMode.card,
+    String? title,
+    String? subtitle,
+    String? snapshotDate,
+    bool showAxisTitles = true,
+    bool full = false,
+    double? height,
+    double? frame,
+    VoidCallback? onSeeAll,
+    VoidCallback? onRetry,
+  }) {
+    final validation = TemplateValidator.validate(template, binding, page.descriptor);
+    if (!validation.isValid) {
+      return ChartFrame(
+        page: page,
+        mode: mode,
+        state: ChartFrameState.error,
+        errorMessage: validation.error,
+        title: title,
+        subtitle: subtitle,
+        snapshotDate: snapshotDate,
+        showAxisTitles: showAxisTitles,
+        onRetry: onRetry,
+        fixedHeight: height,
+        child: const SizedBox.shrink(),
+      );
+    }
+
+    final mappedDimensions = <String>[];
+    final mappedMeasures = <String>[];
+    for (final slotDef in template.slots) {
+      final fields = binding.mapping[slotDef.slotName] ?? const <String>[];
+      if (slotDef.role == 'measure' || slotDef.role == 'value') {
+        mappedMeasures.addAll(fields);
+      } else {
+        mappedDimensions.addAll(fields);
+      }
+    }
+
+    final slot = Slot(
+      page.descriptor.datasetId,
+      visual: visualFromName(template.visual),
+      dimensions: mappedDimensions,
+      measures: mappedMeasures,
+    );
+    final frameState = page.rows.isEmpty ? ChartFrameState.empty : ChartFrameState.ready;
+    return ChartFrame(
+      page: page,
+      mode: mode,
+      state: frameState,
+      title: title,
+      subtitle: subtitle,
+      snapshotDate: snapshotDate,
+      showAxisTitles: showAxisTitles,
+      onSeeAll: onSeeAll,
+      onRetry: onRetry,
+      fixedHeight: height,
+      child: frameState == ChartFrameState.ready
+          ? build(page, slot, full: full, frame: frame)
+          : const SizedBox.shrink(),
+    );
   }
 
   /// Smallest width of one x position in a full view line or bar chart.

@@ -16,4 +16,5 @@ export 'src/charts/series_colors.dart';
 export 'src/charts/visual_chooser.dart';
 export 'src/models/report.dart';
 export 'src/models/reports_link.dart';
+export 'src/models/template.dart';
 export 'src/themes/report_palette.dart';

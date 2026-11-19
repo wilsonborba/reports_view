@@ -1,4 +1,6 @@
 
+import 'template.dart';
+
 class ReportPeriod {
   final String start;
   final String end;
@@ -296,8 +298,9 @@ class DatasetPage {
   final int limit;
   final int totalRows;
   final Lineage? lineage;
+  final CardVisualBinding? visual;
 
-  const DatasetPage({required this.descriptor, required this.rows, required this.offset, required this.limit, required this.totalRows, this.lineage});
+  const DatasetPage({required this.descriptor, required this.rows, required this.offset, required this.limit, required this.totalRows, this.lineage, this.visual});
 
   factory DatasetPage.fromJson(Map<String, dynamic> j) => DatasetPage(
         descriptor: DatasetDescriptor.fromJson(j),
@@ -306,6 +309,7 @@ class DatasetPage {
         limit: (j['limit'] as num?)?.toInt() ?? 0,
         totalRows: (j['total_rows'] as num?)?.toInt() ?? 0,
         lineage: Lineage.fromJson(j['lineage']),
+        visual: j['visual'] is Map ? CardVisualBinding.fromJson(Map<String, dynamic>.from(j['visual'] as Map)) : null,
       );
 }
 
