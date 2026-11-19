@@ -1,0 +1,20 @@
+name: reports_view
+description: Pure Flutter rendering package for analytical charts, diagrams, KPI tiles, and data tables with caller-provided theme tokens.
+version: 0.1.0
+repository: https://github.com/wilsonborba/reports_view
+issue_tracker: https://github.com/wilsonborba/reports_view/issues
+topics:
+  - charts
+  - data-visualization
+  - flutter
+  - diagrams
+environment:
+  sdk: ^3.11.1
+dependencies:
+  flutter:
+    sdk: flutter
+  fl_chart: ^1.2.0
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
