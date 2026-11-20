@@ -5,6 +5,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:reports_view/reports_view.dart';
 import 'package:reports_view/src/charts/diagram_charts.dart';
+import 'package:reports_view/src/charts/geo_charts.dart';
 import 'package:reports_view/src/charts/relation_charts.dart';
 import 'package:reports_view/src/charts/sets_charts.dart';
 
@@ -224,6 +225,7 @@ void main() {
     'architecture_diagram',
   ];
   const setsIds = ['venn', 'euler', 'upset'];
+  const geoIds = ['bubble_map', 'choropleth', 'geo_heatmap', 'flow_map', 'hex_tile_map'];
 
   final specs = <(String, String, String, String, int, int)>[
     for (final id in comparisonIds)
@@ -245,6 +247,7 @@ void main() {
     for (final id in diagramIds)
       (id, 'category', 'string', 'item', id == 'sankey' ? 2 : 1, 1),
     for (final id in setsIds) (id, 'category', 'string', 'item', 1, 1),
+    for (final id in geoIds) (id, 'category', 'string', 'item', 1, 1),
   ];
 
   for (final (id, dimSlot, dimType, dimField, dCount, mCount) in specs) {
@@ -399,5 +402,21 @@ void main() {
     final totals = SetsCatalogChart.computeSetTotals(intersections);
     expect(totals['A'], 15);
     expect(totals['B'], 25);
+  });
+
+  test('semantic: geo projection and heatmap grid binning', () {
+    const pts = [
+      GeoPointDatum(label: 'SW', lat: -10, lon: -20, value: 10),
+      GeoPointDatum(label: 'NE', lat: 10, lon: 20, value: 40),
+    ];
+    final norm = GeoCatalogChart.projectPoints(pts);
+    expect(norm[0].dx, closeTo(0.0, 1e-6));
+    expect(norm[0].dy, closeTo(1.0, 1e-6));
+    expect(norm[1].dx, closeTo(1.0, 1e-6));
+    expect(norm[1].dy, closeTo(0.0, 1e-6));
+
+    final grid = GeoCatalogChart.computeGeoHeatmapGrid(pts, grid: 4);
+    expect(grid[3][0], 10);
+    expect(grid[0][3], 40);
   });
 }
