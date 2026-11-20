@@ -226,6 +226,12 @@ void main() {
   ];
   const setsIds = ['venn', 'euler', 'upset'];
   const geoIds = ['bubble_map', 'choropleth', 'geo_heatmap', 'flow_map', 'hex_tile_map'];
+  const indicatorIds = [
+    'kpi_sparkline',
+    'heat_table',
+    'status_scorecard',
+    'word_cloud',
+  ];
 
   final specs = <(String, String, String, String, int, int)>[
     for (final id in comparisonIds)
@@ -248,6 +254,7 @@ void main() {
       (id, 'category', 'string', 'item', id == 'sankey' ? 2 : 1, 1),
     for (final id in setsIds) (id, 'category', 'string', 'item', 1, 1),
     for (final id in geoIds) (id, 'category', 'string', 'item', 1, 1),
+    for (final id in indicatorIds) (id, 'category', 'string', 'item', 1, 1),
   ];
 
   for (final (id, dimSlot, dimType, dimField, dCount, mCount) in specs) {

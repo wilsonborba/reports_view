@@ -403,6 +403,14 @@ void main() {
   ];
   const setsIds = ['venn', 'euler', 'upset'];
   const geoIds = ['bubble_map', 'choropleth', 'geo_heatmap', 'flow_map', 'hex_tile_map'];
+  const indicatorIds = [
+    'kpi',
+    'kpi_sparkline',
+    'table',
+    'heat_table',
+    'status_scorecard',
+    'word_cloud',
+  ];
 
   for (final id in comparisonIds) {
     testWidgets('golden comparison/$id', (tester) async {
@@ -520,6 +528,21 @@ void main() {
         dimField: 'item',
         count: 6,
         twoMeasures: false,
+      );
+    });
+  }
+
+  for (final id in indicatorIds) {
+    testWidgets('golden indicator/$id', (tester) async {
+      await _pumpAndGolden(
+        tester,
+        group: 'indicator',
+        id: id,
+        dimSlot: 'category',
+        dimType: 'string',
+        dimField: 'item',
+        count: 6,
+        twoMeasures: id == 'heat_table' || id == 'status_scorecard',
       );
     });
   }

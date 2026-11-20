@@ -117,6 +117,10 @@ enum Visual {
   geoHeatmap,
   flowMap,
   hexTileMap,
+  kpiSparkline,
+  heatTable,
+  statusScorecard,
+  wordCloud,
 }
 
 /// One card of a section: a dataset and how to show it.
