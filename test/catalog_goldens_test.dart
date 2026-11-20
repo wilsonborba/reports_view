@@ -217,20 +217,25 @@ Future<void> _pumpAndGolden(
     final key = UniqueKey();
     await tester.pumpWidget(
       MaterialApp(
-        locale: locale,
         theme: _palette.toTheme(Brightness.light),
-        home: Scaffold(
-          body: RepaintBoundary(
-            key: key,
-            child: SizedBox(
-              width: 480,
-              height: 360,
-              child: SingleChildScrollView(
-                child: VisualChooser.buildTemplate(
-                  page: page,
-                  template: tpl,
-                  binding: binding,
-                  title: _localizedTitle(tag, id),
+        home: Builder(
+          builder: (context) => Localizations.override(
+            context: context,
+            locale: locale,
+            child: Scaffold(
+              body: RepaintBoundary(
+                key: key,
+                child: SizedBox(
+                  width: 480,
+                  height: 360,
+                  child: SingleChildScrollView(
+                    child: VisualChooser.buildTemplate(
+                      page: page,
+                      template: tpl,
+                      binding: binding,
+                      title: _localizedTitle(tag, id),
+                    ),
+                  ),
                 ),
               ),
             ),
