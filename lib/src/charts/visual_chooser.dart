@@ -552,6 +552,7 @@ class VisualChooser {
           xMeasure: ms.first,
           yMeasure: ms.length > 1 ? ms[1] : ms.first,
           sizeMeasure: ms.length > 2 ? ms[2] : null,
+          measures: ms,
           height: height ?? (full ? 420 : 260),
         );
       case Visual.combo:
