@@ -300,6 +300,7 @@ void main() {
     'mind_map', 'network', 'adjacency_matrix', 'er_diagram',
     'architecture_diagram',
   ];
+  const setsIds = ['venn', 'euler', 'upset'];
 
   for (final id in comparisonIds) {
     testWidgets('golden comparison/$id', (tester) async {
@@ -386,6 +387,21 @@ void main() {
         dimType: 'string',
         dimField: 'item',
         count: 6,
+        twoMeasures: false,
+      );
+    });
+  }
+
+  for (final id in setsIds) {
+    testWidgets('golden sets/$id', (tester) async {
+      await _pumpAndGolden(
+        tester,
+        group: 'sets',
+        id: id,
+        dimSlot: 'category',
+        dimType: 'string',
+        dimField: 'item',
+        count: 5,
         twoMeasures: false,
       );
     });

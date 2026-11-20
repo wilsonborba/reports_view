@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:reports_view/reports_view.dart';
 import 'package:reports_view/src/charts/diagram_charts.dart';
 import 'package:reports_view/src/charts/relation_charts.dart';
+import 'package:reports_view/src/charts/sets_charts.dart';
 
 const _palette = ReportPalette(
   canvas: Color(0xFFFFFFFF),
@@ -222,6 +223,7 @@ void main() {
     'mind_map', 'network', 'adjacency_matrix', 'er_diagram',
     'architecture_diagram',
   ];
+  const setsIds = ['venn', 'euler', 'upset'];
 
   final specs = <(String, String, String, String, int, int)>[
     for (final id in comparisonIds)
@@ -242,6 +244,7 @@ void main() {
       (id, 'category', 'string', 'item', 1, id == 'ternary' ? 3 : 2),
     for (final id in diagramIds)
       (id, 'category', 'string', 'item', id == 'sankey' ? 2 : 1, 1),
+    for (final id in setsIds) (id, 'category', 'string', 'item', 1, 1),
   ];
 
   for (final (id, dimSlot, dimType, dimField, dCount, mCount) in specs) {
@@ -367,5 +370,20 @@ void main() {
       expect(p.dx, inInclusiveRange(0.0, 1.0));
       expect(p.dy, inInclusiveRange(0.0, 1.0));
     }
+  });
+
+  test('semantic: sets intersection parsing and totals', () {
+    final intersections = SetsCatalogChart.extractIntersections(
+      const [
+        {'s': 'A', 'v': 10},
+        {'s': 'A & B', 'v': 5},
+        {'s': 'B', 'v': 20},
+      ],
+      const FieldInfo(name: 's', label: 'Sets', type: 'string', role: 'dimension'),
+      const FieldInfo(name: 'v', label: 'Count', type: 'integer', role: 'measure'),
+    );
+    final totals = SetsCatalogChart.computeSetTotals(intersections);
+    expect(totals['A'], 15);
+    expect(totals['B'], 25);
   });
 }
