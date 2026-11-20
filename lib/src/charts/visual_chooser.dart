@@ -12,6 +12,7 @@ import 'kpi_tiles.dart';
 import 'line_charts.dart';
 import 'map_chart.dart';
 import 'part_whole_charts.dart';
+import 'distribution_charts.dart';
 import 'sankey_chart.dart';
 import 'time_charts.dart';
 
@@ -225,6 +226,16 @@ class VisualChooser {
     'waffle' => Visual.waffle,
     'nightingaleRose' || 'nightingale_rose' => Visual.nightingaleRose,
     'funnel' => Visual.funnel,
+    'histogram' => Visual.histogram,
+    'boxPlot' || 'box_plot' => Visual.boxPlot,
+    'violin' => Visual.violin,
+    'density' => Visual.density,
+    'ridgeline' => Visual.ridgeline,
+    'strip' => Visual.strip,
+    'ecdf' => Visual.ecdf,
+    'qqPlot' || 'qq_plot' => Visual.qqPlot,
+    'populationPyramid' || 'population_pyramid' => Visual.populationPyramid,
+    'raincloud' => Visual.raincloud,
     'combo' => Visual.combo,
     'curve' => Visual.curve,
     'map' => Visual.map,
@@ -495,6 +506,24 @@ class VisualChooser {
           visual: visual,
           label: dims.first,
           value: ms.first,
+          height: height ?? (full ? 420 : 260),
+        );
+      case Visual.histogram:
+      case Visual.boxPlot:
+      case Visual.violin:
+      case Visual.density:
+      case Visual.ridgeline:
+      case Visual.strip:
+      case Visual.ecdf:
+      case Visual.qqPlot:
+      case Visual.populationPyramid:
+      case Visual.raincloud:
+        return DistributionCatalogChart(
+          page: page,
+          visual: visual,
+          label: dims.first,
+          value: ms.first,
+          secondValue: ms.length > 1 ? ms[1] : null,
           height: height ?? (full ? 420 : 260),
         );
       case Visual.combo:
