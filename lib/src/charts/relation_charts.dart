@@ -32,6 +32,25 @@ class RelationCatalogChart extends StatelessWidget {
     this.height = 260,
   });
 
+  /// Returns three distinct corner labels for a ternary chart, avoiding a
+  /// repeated label when fewer than three distinct measures are supplied.
+  static List<String> ternaryCornerLabels(
+    FieldInfo xMeasure,
+    FieldInfo secondMeasure,
+    FieldInfo? thirdMeasure,
+  ) {
+    final a = xMeasure.label;
+    final b = secondMeasure.label;
+    if (thirdMeasure != null &&
+        thirdMeasure.name != xMeasure.name &&
+        thirdMeasure.name != secondMeasure.name) {
+      return [a, b, thirdMeasure.label];
+    }
+    const fallback = 'Other';
+    final c = (a == fallback || b == fallback) ? 'C' : fallback;
+    return [a, b, c];
+  }
+
   /// Computes Pearson correlation matrix across [cols] from [rows].
   static List<List<double>> computeCorrelationMatrix(
     List<Map<String, dynamic>> rows,
@@ -639,11 +658,22 @@ class _RelationPainter extends CustomPainter {
         ..strokeWidth = 1.5,
     );
     final fB = measures.length > 1 ? measures[1] : yMeasure;
-    final fC = measures.length > 2 ? measures[2] : (sizeMeasure ?? yMeasure);
+    final rawC = measures.length > 2 ? measures[2] : sizeMeasure;
+    final hasThird =
+        rawC != null &&
+        rawC.name != xMeasure.name &&
+        rawC.name != fB.name;
+    final cornerLabels = RelationCatalogChart.ternaryCornerLabels(
+      xMeasure,
+      fB,
+      rawC,
+    );
     for (var i = 0; i < rows.length; i++) {
       final a = _num(rows[i], xMeasure).abs() + 1;
       final b = _num(rows[i], fB).abs() + 1;
-      final c = _num(rows[i], fC).abs() + 1;
+      final c = hasThird
+          ? (_num(rows[i], rawC).abs() + 1)
+          : ((a + b) < 100.0 ? (100.0 - a - b) : 1.0);
       final sum = a + b + c;
       final wa = a / sum, wb = b / sum, wc = c / sum;
       final pt = Offset(
@@ -656,9 +686,9 @@ class _RelationPainter extends CustomPainter {
         Paint()..color = palette.seriesAt(i % ReportPalette.slots),
       );
     }
-    _drawText(canvas, xMeasure.label, top + const Offset(-18, -16));
-    _drawText(canvas, fB.label, bl + const Offset(-12, 4), maxWidth: 80);
-    _drawText(canvas, fC.label, br + const Offset(-32, 4), maxWidth: 80);
+    _drawText(canvas, cornerLabels[0], top + const Offset(-18, -16));
+    _drawText(canvas, cornerLabels[1], bl + const Offset(-12, 4), maxWidth: 80);
+    _drawText(canvas, cornerLabels[2], br + const Offset(-32, 4), maxWidth: 80);
   }
 
   @override

@@ -317,4 +317,18 @@ void main() {
     expect(pts.last.$1, closeTo(1.0, 1e-6));
     expect(pts.last.$2, closeTo(1.0, 1e-6));
   });
+
+  test('semantic: ternary with two measures does not repeat corner labels', () {
+    const a = FieldInfo(name: 'v1', label: 'V1', type: 'integer', role: 'measure');
+    const b = FieldInfo(name: 'v2', label: 'V2', type: 'integer', role: 'measure');
+    const c = FieldInfo(name: 'v3', label: 'V3', type: 'integer', role: 'measure');
+    final two = RelationCatalogChart.ternaryCornerLabels(a, b, null);
+    expect(two.toSet().length, 3);
+    expect(two, ['V1', 'V2', 'Other']);
+    final dup = RelationCatalogChart.ternaryCornerLabels(a, b, b);
+    expect(dup.toSet().length, 3);
+    expect(dup, ['V1', 'V2', 'Other']);
+    final three = RelationCatalogChart.ternaryCornerLabels(a, b, c);
+    expect(three, ['V1', 'V2', 'V3']);
+  });
 }
