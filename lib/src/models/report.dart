@@ -121,6 +121,16 @@ enum Visual {
   heatTable,
   statusScorecard,
   wordCloud,
+  topKProb,
+  calibration,
+  confusionMatrix,
+  rocPr,
+  learningCurve,
+  irtIcc,
+  irtIif,
+  wrightMap,
+  itemDiffDisc,
+  kaplanMeier,
 }
 
 /// One card of a section: a dataset and how to show it.

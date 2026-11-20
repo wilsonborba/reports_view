@@ -232,6 +232,18 @@ void main() {
     'status_scorecard',
     'word_cloud',
   ];
+  const scienceIds = [
+    'top_k_prob',
+    'calibration',
+    'confusion_matrix',
+    'roc_pr',
+    'learning_curve',
+    'irt_icc',
+    'irt_iif',
+    'wright_map',
+    'item_diff_disc',
+    'kaplan_meier',
+  ];
 
   final specs = <(String, String, String, String, int, int)>[
     for (final id in comparisonIds)
@@ -255,6 +267,7 @@ void main() {
     for (final id in setsIds) (id, 'category', 'string', 'item', 1, 1),
     for (final id in geoIds) (id, 'category', 'string', 'item', 1, 1),
     for (final id in indicatorIds) (id, 'category', 'string', 'item', 1, 1),
+    for (final id in scienceIds) (id, 'category', 'string', 'item', 1, 1),
   ];
 
   for (final (id, dimSlot, dimType, dimField, dCount, mCount) in specs) {

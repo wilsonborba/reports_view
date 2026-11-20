@@ -18,6 +18,7 @@ import 'part_whole_charts.dart';
 import 'distribution_charts.dart';
 import 'relation_charts.dart';
 import 'sankey_chart.dart';
+import 'science_ai_charts.dart';
 import 'sets_charts.dart';
 import 'time_charts.dart';
 
@@ -282,6 +283,16 @@ class VisualChooser {
     'heatTable' || 'heat_table' => Visual.heatTable,
     'statusScorecard' || 'status_scorecard' => Visual.statusScorecard,
     'wordCloud' || 'word_cloud' => Visual.wordCloud,
+    'topKProb' || 'top_k_prob' => Visual.topKProb,
+    'calibration' => Visual.calibration,
+    'confusionMatrix' || 'confusion_matrix' => Visual.confusionMatrix,
+    'rocPr' || 'roc_pr' => Visual.rocPr,
+    'learningCurve' || 'learning_curve' => Visual.learningCurve,
+    'irtIcc' || 'irt_icc' => Visual.irtIcc,
+    'irtIif' || 'irt_iif' => Visual.irtIif,
+    'wrightMap' || 'wright_map' => Visual.wrightMap,
+    'itemDiffDisc' || 'item_diff_disc' => Visual.itemDiffDisc,
+    'kaplanMeier' || 'kaplan_meier' => Visual.kaplanMeier,
     _ => Visual.auto,
   };
 
@@ -699,6 +710,23 @@ class VisualChooser {
       case Visual.statusScorecard:
       case Visual.wordCloud:
         return IndicatorTableChart(
+          page: page,
+          visual: visual,
+          dimension: dims.isNotEmpty ? dims.first : null,
+          measures: ms,
+          height: height ?? (full ? 360 : 240),
+        );
+      case Visual.topKProb:
+      case Visual.calibration:
+      case Visual.confusionMatrix:
+      case Visual.rocPr:
+      case Visual.learningCurve:
+      case Visual.irtIcc:
+      case Visual.irtIif:
+      case Visual.wrightMap:
+      case Visual.itemDiffDisc:
+      case Visual.kaplanMeier:
+        return ScienceAiChart(
           page: page,
           visual: visual,
           dimension: dims.isNotEmpty ? dims.first : null,

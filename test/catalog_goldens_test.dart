@@ -411,6 +411,18 @@ void main() {
     'status_scorecard',
     'word_cloud',
   ];
+  const scienceIds = [
+    'top_k_prob',
+    'calibration',
+    'confusion_matrix',
+    'roc_pr',
+    'learning_curve',
+    'irt_icc',
+    'irt_iif',
+    'wright_map',
+    'item_diff_disc',
+    'kaplan_meier',
+  ];
 
   for (final id in comparisonIds) {
     testWidgets('golden comparison/$id', (tester) async {
@@ -543,6 +555,21 @@ void main() {
         dimField: 'item',
         count: 6,
         twoMeasures: id == 'heat_table' || id == 'status_scorecard',
+      );
+    });
+  }
+
+  for (final id in scienceIds) {
+    testWidgets('golden science/$id', (tester) async {
+      await _pumpAndGolden(
+        tester,
+        group: 'science',
+        id: id,
+        dimSlot: 'category',
+        dimType: 'string',
+        dimField: 'item',
+        count: 6,
+        twoMeasures: id == 'learning_curve' || id == 'item_diff_disc' || id == 'roc_pr',
       );
     });
   }
