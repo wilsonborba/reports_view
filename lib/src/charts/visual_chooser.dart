@@ -16,6 +16,7 @@ import 'part_whole_charts.dart';
 import 'distribution_charts.dart';
 import 'relation_charts.dart';
 import 'sankey_chart.dart';
+import 'sets_charts.dart';
 import 'time_charts.dart';
 
 /// Chooses the chart for a dataset from its field types and roles. The layout can
@@ -267,6 +268,9 @@ class VisualChooser {
     'adjacencyMatrix' || 'adjacency_matrix' => Visual.adjacencyMatrix,
     'erDiagram' || 'er_diagram' => Visual.erDiagram,
     'architectureDiagram' || 'architecture_diagram' => Visual.architectureDiagram,
+    'venn' => Visual.venn,
+    'euler' => Visual.euler,
+    'upset' => Visual.upset,
     _ => Visual.auto,
   };
 
@@ -590,6 +594,16 @@ class VisualChooser {
           page: page,
           visual: visual,
           dims: dims,
+          measure: ms.first,
+          height: height ?? (full ? 420 : 260),
+        );
+      case Visual.venn:
+      case Visual.euler:
+      case Visual.upset:
+        return SetsCatalogChart(
+          page: page,
+          visual: visual,
+          label: dims.first,
           measure: ms.first,
           height: height ?? (full ? 420 : 260),
         );

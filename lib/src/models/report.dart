@@ -109,6 +109,9 @@ enum Visual {
   adjacencyMatrix,
   erDiagram,
   architectureDiagram,
+  venn,
+  euler,
+  upset,
 }
 
 /// One card of a section: a dataset and how to show it.
