@@ -289,6 +289,11 @@ void main() {
     'ecdf', 'qq_plot', 'population_pyramid', 'raincloud',
   ];
 
+  const relationIds = [
+    'scatter', 'bubble', 'heatmap', 'correlation_matrix', 'hexbin',
+    'contour_2d', 'splom', 'quadrant', 'ternary',
+  ];
+
   for (final id in comparisonIds) {
     testWidgets('golden comparison/$id', (tester) async {
       await _pumpAndGolden(
@@ -345,6 +350,21 @@ void main() {
         dimField: 'cohort',
         count: 8,
         twoMeasures: false,
+      );
+    });
+  }
+
+  for (final id in relationIds) {
+    testWidgets('golden relation/$id', (tester) async {
+      await _pumpAndGolden(
+        tester,
+        group: 'relation',
+        id: id,
+        dimSlot: 'category',
+        dimType: 'string',
+        dimField: 'item',
+        count: 6,
+        twoMeasures: true,
       );
     });
   }
