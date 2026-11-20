@@ -173,6 +173,6 @@ void main() {
       ),
     );
     await tester.pump();
-    expect(find.textContaining('Offline — last updated'), findsOneWidget);
+    expect(find.textContaining('Offline, last updated'), findsOneWidget);
   });
 }

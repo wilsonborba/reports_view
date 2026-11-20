@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/chart_strings.dart';
 import '../models/report.dart';
 import '../themes/report_palette.dart';
 import 'chart_parts.dart';
@@ -99,51 +100,60 @@ class _ChartFrameState extends State<ChartFrame> {
   String? get errorMessage => widget.errorMessage;
   Widget get child => _showingTable ? DataTableView(page: page) : widget.child;
 
-  String _sourceText() {
+  String _sourceText(BuildContext context) {
     final s = page.descriptor.meta?.source.trim() ?? '';
-    return s.isEmpty ? 'Source unavailable' : 'Source: $s';
+    return s.isEmpty
+        ? context.tr('source_unavailable')
+        : context.tr('source_label', {'source': s});
   }
 
-  String _periodText() {
+  String _periodText(BuildContext context) {
     final m = page.descriptor.meta;
     if (m == null || (m.periodStart.isEmpty && m.periodEnd.isEmpty)) {
-      return 'Period unavailable';
+      return context.tr('period_unavailable');
     }
     final tz = m.timezone.isEmpty ? 'UTC' : m.timezone;
     if (m.periodStart.isNotEmpty && m.periodEnd.isNotEmpty) {
-      return 'Period: ${m.periodStart} to ${m.periodEnd} ($tz)';
+      return context.tr('period_range', {
+        'start': m.periodStart,
+        'end': m.periodEnd,
+        'tz': tz,
+      });
     }
-    return 'Period: ${m.periodStart}${m.periodEnd} ($tz)';
+    return context.tr('period_single', {
+      'value': '${m.periodStart}${m.periodEnd}',
+      'tz': tz,
+    });
   }
 
-  String _updatedText() {
+  String _updatedText(BuildContext context) {
     if (snapshotDate != null && snapshotDate!.trim().isNotEmpty) {
-      return 'Snapshot: ${snapshotDate!.trim()}';
+      return context.tr('snapshot_label', {'value': snapshotDate!.trim()});
     }
     final calcAt = page.lineage?.calculatedAt.trim() ?? '';
     final m = page.descriptor.meta;
     final tz = (m?.timezone.isNotEmpty ?? false) ? m!.timezone : 'UTC';
     if (calcAt.isNotEmpty) {
       return state == ChartFrameState.offline
-          ? 'Offline — last updated $calcAt ($tz)'
-          : 'Updated: $calcAt ($tz)';
+          ? context.tr('offline_updated', {'value': calcAt, 'tz': tz})
+          : context.tr('updated_label', {'value': calcAt, 'tz': tz});
     }
     if (m != null && m.updatedAt > 0) {
       return state == ChartFrameState.offline
-          ? 'Offline — last updated ${m.updatedAt} ($tz)'
-          : 'Updated: ${m.updatedAt} ($tz)';
+          ? context.tr('offline_updated', {'value': '${m.updatedAt}', 'tz': tz})
+          : context.tr('updated_label', {'value': '${m.updatedAt}', 'tz': tz});
     }
-    return 'Last update unavailable';
+    return context.tr('last_update_unavailable');
   }
 
-  String _tierLabel() {
+  String _tierLabel(BuildContext context) {
     final raw = (page.descriptor.meta?.tier.isNotEmpty ?? false)
         ? page.descriptor.meta!.tier
         : page.descriptor.dataTier;
     return switch (raw) {
-      'real' => 'Real',
-      'hybrid' => 'Hybrid',
-      _ => 'Sample',
+      'real' => context.tr('tier_real'),
+      'hybrid' => context.tr('tier_hybrid'),
+      _ => context.tr('tier_sample'),
     };
   }
 
@@ -159,13 +169,13 @@ class _ChartFrameState extends State<ChartFrame> {
                 child: CircularProgressIndicator(strokeWidth: 2, color: p.accent),
               ),
               const SizedBox(width: 8),
-              Text('Loading chart...', style: TextStyle(color: p.textMuted, fontSize: 12)),
+              Text(context.tr('loading_chart'), style: TextStyle(color: p.textMuted, fontSize: 12)),
             ],
           ),
         ),
       ChartFrameState.empty => Center(
           child: Text(
-            'No data for this period',
+            context.tr('no_data_period'),
             style: TextStyle(color: p.textMuted, fontSize: 12),
           ),
         ),
@@ -176,7 +186,7 @@ class _ChartFrameState extends State<ChartFrame> {
               Icon(Icons.lock_outline, size: 20, color: p.textMuted),
               const SizedBox(height: 4),
               Text(
-                'Restricted chart',
+                context.tr('restricted_chart'),
                 style: TextStyle(color: p.textMuted, fontSize: 12),
               ),
             ],
@@ -187,13 +197,13 @@ class _ChartFrameState extends State<ChartFrame> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                errorMessage ?? 'Could not load chart',
+                errorMessage ?? context.tr('error_chart'),
                 textAlign: TextAlign.center,
                 style: TextStyle(color: p.negative, fontSize: 12),
               ),
               if (onRetry != null) ...[
                 const SizedBox(height: 6),
-                TextButton(onPressed: onRetry, child: const Text('Retry')),
+                TextButton(onPressed: onRetry, child: Text(context.tr('retry'))),
               ],
             ],
           ),
@@ -246,7 +256,7 @@ class _ChartFrameState extends State<ChartFrame> {
     final p = context.palette;
     final resolvedTitle = (title ?? page.descriptor.title).trim();
     final resolvedSubtitle = (subtitle ?? page.descriptor.description).trim();
-    final tier = _tierLabel();
+    final tier = _tierLabel(context);
 
     return Semantics(
       label: ChartFrame.semanticsSummary(page, title: title),
@@ -307,12 +317,12 @@ class _ChartFrameState extends State<ChartFrame> {
                 const SizedBox(width: 6),
                 TextButton(
                   onPressed: widget.onToggleTable ?? () => setState(() => _localTable = !_localTable),
-                  child: Text(_showingTable ? 'Show as chart' : 'Show as table'),
+                  child: Text(_showingTable ? context.tr('show_as_chart') : context.tr('show_as_table')),
                 ),
               ],
               if (mode == ChartFrameMode.card && onSeeAll != null) ...[
                 const SizedBox(width: 4),
-                TextButton(onPressed: onSeeAll, child: const Text('See all')),
+                TextButton(onPressed: onSeeAll, child: Text(context.tr('see_all'))),
               ],
             ],
           ),
@@ -323,9 +333,9 @@ class _ChartFrameState extends State<ChartFrame> {
             spacing: 12,
             runSpacing: 4,
             children: [
-              Text(_sourceText(), style: TextStyle(color: p.textMuted, fontSize: 11)),
-              Text(_periodText(), style: TextStyle(color: p.textMuted, fontSize: 11)),
-              Text(_updatedText(), style: TextStyle(color: p.textMuted, fontSize: 11)),
+              Text(_sourceText(context), style: TextStyle(color: p.textMuted, fontSize: 11)),
+              Text(_periodText(context), style: TextStyle(color: p.textMuted, fontSize: 11)),
+              Text(_updatedText(context), style: TextStyle(color: p.textMuted, fontSize: 11)),
             ],
           ),
         ],
