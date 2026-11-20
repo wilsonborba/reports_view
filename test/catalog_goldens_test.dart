@@ -213,6 +213,54 @@ DatasetPage _makeDiagramPage(String id, {String lang = 'en'}) {
   );
 }
 
+DatasetPage _makeSetsPage(String id, {String dimField = 'item', String lang = 'en'}) {
+  final isTh = lang == 'th';
+  final isPt = lang == 'pt-BR';
+  String lbl(String en, String pt, String th) => isTh ? th : (isPt ? pt : en);
+  final a = lbl('Core', 'Núcleo', 'แกน');
+  final b = lbl('Cloud', 'Nuvem', 'คลาวด์');
+  final c = lbl('Edge', 'Borda', 'ขอบ');
+  final d = lbl('Mobile', 'Móvel', 'มือถือ');
+  final rows = <Map<String, dynamic>>[
+    {dimField: a, 'v1': 42},
+    {dimField: b, 'v1': 35},
+    {dimField: c, 'v1': 28},
+    {dimField: d, 'v1': 18},
+    {dimField: '$a & $b', 'v1': 22},
+    {dimField: '$b & $c', 'v1': 14},
+    {dimField: '$c & $d', 'v1': 10},
+    {dimField: '$a & $b & $d', 'v1': 8},
+  ];
+  return DatasetPage(
+    descriptor: DatasetDescriptor(
+      datasetId: 'sets_$id',
+      title: _localizedTitle(lang, id),
+      description: 'Realistic sets fixture with intersections ($id)',
+      equation: null,
+      fields: [
+        FieldInfo(name: dimField, label: lbl('Sets', 'Conjuntos', 'กลุ่ม'), type: 'string', role: 'dimension'),
+        FieldInfo(name: 'v1', label: lbl('Count', 'Contagem', 'จำนวน'), type: 'integer', role: 'measure', unit: 'u'),
+      ],
+      filters: const [],
+      meta: const DatasetMeta(
+        source: 'Fixture',
+        sourceUrl: 'https://reports.asodya.com',
+        periodStart: '2026-01-01',
+        periodEnd: '2026-01-31',
+        timezone: 'UTC',
+        freshnessMode: 'daily',
+        expectedRefreshMinutes: 60,
+        updatedAt: 1700000000,
+        tier: 'public',
+      ),
+    ),
+    rows: rows,
+    offset: 0,
+    limit: rows.length,
+    totalRows: rows.length,
+  );
+}
+
 Future<void> _pumpAndGolden(
   WidgetTester tester, {
   required String group,
@@ -230,8 +278,11 @@ Future<void> _pumpAndGolden(
   ]) {
     final tag = locale.toLanguageTag();
     final isDiag = group == 'diagram';
+    final isSets = group == 'sets';
     final page = isDiag
         ? _makeDiagramPage(id, lang: tag)
+        : isSets
+        ? _makeSetsPage(id, dimField: dimField, lang: tag)
         : _makePage('${group}_$id', dimField, dimType, count, lang: tag);
     final tpl = VisualTemplate(
       templateId: id,

@@ -137,4 +137,71 @@ void main() {
     final totals = SetsCatalogChart.computeSetTotals(intersections);
     expect(totals.length, SetsCatalogChart.maxSets);
   });
+
+  test('semantic: intersections, Euler disjointness, and non-overlapping labels', () {
+    final rows = const [
+      {'sets': 'Core', 'cnt': 42},
+      {'sets': 'Cloud', 'cnt': 35},
+      {'sets': 'Edge', 'cnt': 28},
+      {'sets': 'Mobile', 'cnt': 18},
+      {'sets': 'Core & Cloud', 'cnt': 22},
+      {'sets': 'Cloud & Edge', 'cnt': 14},
+      {'sets': 'Core & Cloud & Mobile', 'cnt': 8},
+    ];
+    final intersections = SetsCatalogChart.extractIntersections(
+      rows,
+      const FieldInfo(name: 'sets', label: 'Sets', type: 'string', role: 'dimension'),
+      const FieldInfo(name: 'cnt', label: 'Count', type: 'integer', role: 'measure'),
+    );
+    final totals = SetsCatalogChart.computeSetTotals(intersections);
+
+    // Pairwise intersection sizes
+    expect(SetsCatalogChart.pairwiseOverlap(intersections, 'Core', 'Cloud'), 30);
+    expect(SetsCatalogChart.pairwiseOverlap(intersections, 'Cloud', 'Edge'), 14);
+    expect(SetsCatalogChart.pairwiseOverlap(intersections, 'Core', 'Edge'), 0);
+
+    // UpSet prioritizes multi-set intersection columns
+    final upCols = SetsCatalogChart.computeUpSetColumns(intersections);
+    expect(upCols.first.sets.length, greaterThanOrEqualTo(2));
+    expect(upCols.where((c) => c.sets.length >= 2).length, 3);
+
+    // Euler vs Venn: Euler separates non-intersecting Core & Edge, and scales radii by count
+    const sz = Size(440, 260);
+    final euler = SetsCatalogChart.layoutCircles(
+      sz,
+      intersections,
+      totals,
+      _palette,
+      euler: true,
+    );
+    final venn = SetsCatalogChart.layoutCircles(
+      sz,
+      intersections,
+      totals,
+      _palette,
+      euler: false,
+    );
+    expect(euler.length, 3);
+    expect(venn.length, 3);
+
+    // Core (0) and Cloud (1) intersect; Core (0) and Edge (2) do NOT intersect in Euler
+    final dCoreCloud = (euler[0].center - euler[1].center).distance;
+    final dCoreEdge = (euler[0].center - euler[2].center).distance;
+    expect(dCoreCloud, lessThan(euler[0].radius + euler[1].radius));
+    expect(dCoreEdge, greaterThan(euler[0].radius + euler[2].radius));
+    expect(euler[0].radius, greaterThan(euler[2].radius));
+
+    // All label boxes in both Venn and Euler must be strictly non-overlapping
+    for (final circles in [venn, euler]) {
+      for (var i = 0; i < circles.length; i++) {
+        for (var j = i + 1; j < circles.length; j++) {
+          expect(
+            circles[i].labelRect.overlaps(circles[j].labelRect),
+            isFalse,
+            reason: 'Labels ${circles[i].name} and ${circles[j].name} overlapped',
+          );
+        }
+      }
+    }
+  });
 }
