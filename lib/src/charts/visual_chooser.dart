@@ -10,6 +10,7 @@ import 'diagram_charts.dart';
 import 'donut_chart.dart';
 import 'format.dart';
 import 'geo_charts.dart';
+import 'indicator_table_charts.dart';
 import 'kpi_tiles.dart';
 import 'line_charts.dart';
 import 'map_chart.dart';
@@ -277,6 +278,10 @@ class VisualChooser {
     'geoHeatmap' || 'geo_heatmap' => Visual.geoHeatmap,
     'flowMap' || 'flow_map' => Visual.flowMap,
     'hexTileMap' || 'hex_tile_map' => Visual.hexTileMap,
+    'kpiSparkline' || 'kpi_sparkline' => Visual.kpiSparkline,
+    'heatTable' || 'heat_table' => Visual.heatTable,
+    'statusScorecard' || 'status_scorecard' => Visual.statusScorecard,
+    'wordCloud' || 'word_cloud' => Visual.wordCloud,
     _ => Visual.auto,
   };
 
@@ -688,6 +693,17 @@ class VisualChooser {
           measures: ms,
           seriesField: dims.length > 1 ? dims[1] : null,
           height: height ?? (full ? 420 : 260),
+        );
+      case Visual.kpiSparkline:
+      case Visual.heatTable:
+      case Visual.statusScorecard:
+      case Visual.wordCloud:
+        return IndicatorTableChart(
+          page: page,
+          visual: visual,
+          dimension: dims.isNotEmpty ? dims.first : null,
+          measures: ms,
+          height: height ?? (full ? 360 : 240),
         );
       case Visual.table:
       case Visual.auto:
