@@ -144,7 +144,12 @@ class _DistributionPainter extends CustomPainter {
     final tp = TextPainter(
       text: TextSpan(
         text: text,
-        style: TextStyle(color: palette.textMuted, fontSize: 10),
+        style: TextStyle(
+          color: palette.textMuted,
+          fontSize: 10,
+          fontFamily: ReportPalette.font,
+          fontFamilyFallback: ReportPalette.fontFallback,
+        ),
       ),
       textDirection: TextDirection.ltr,
       maxLines: 1,
