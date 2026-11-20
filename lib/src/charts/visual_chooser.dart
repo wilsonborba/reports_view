@@ -12,6 +12,7 @@ import 'kpi_tiles.dart';
 import 'line_charts.dart';
 import 'map_chart.dart';
 import 'sankey_chart.dart';
+import 'time_charts.dart';
 
 /// Chooses the chart for a dataset from its field types and roles. The layout can
 /// force a visual and the measures; the API never sends chart types.
@@ -171,6 +172,23 @@ class VisualChooser {
   static Visual visualFromName(String name) => switch (name.trim()) {
     'kpi' => Visual.kpi,
     'line' => Visual.line,
+    'stepLine' || 'step_line' => Visual.stepLine,
+    'area' => Visual.area,
+    'stackedArea' || 'stacked_area' => Visual.stackedArea,
+    'stackedArea100' || 'stacked_area_100' => Visual.stackedArea100,
+    'streamgraph' => Visual.streamgraph,
+    'sparkline' => Visual.sparkline,
+    'bumpChart' || 'bump_chart' => Visual.bumpChart,
+    'candlestick' => Visual.candlestick,
+    'rangeBand' || 'range_band' => Visual.rangeBand,
+    'annotatedLine' || 'annotated_line' => Visual.annotatedLine,
+    'timeline' => Visual.timeline,
+    'gantt' => Visual.gantt,
+    'calendarHeatmap' || 'calendar_heatmap' => Visual.calendarHeatmap,
+    'horizon' => Visual.horizon,
+    'controlChart' || 'control_chart' => Visual.controlChart,
+    'burndown' => Visual.burndown,
+    'cyclePlot' || 'cycle_plot' => Visual.cyclePlot,
     'bar' || 'vertical_bar' => Visual.bar,
     'hbar' || 'horizontal_bar' => Visual.hbar,
     'rankingBar' || 'ranking_bar' => Visual.rankingBar,
@@ -359,6 +377,30 @@ class VisualChooser {
           x: dims.isNotEmpty ? dims.first : d.fields.first,
           measures: ms,
           numericX: true,
+          height: height ?? (full ? 420 : 260),
+        );
+      case Visual.stepLine:
+      case Visual.area:
+      case Visual.stackedArea:
+      case Visual.stackedArea100:
+      case Visual.streamgraph:
+      case Visual.sparkline:
+      case Visual.bumpChart:
+      case Visual.candlestick:
+      case Visual.rangeBand:
+      case Visual.annotatedLine:
+      case Visual.timeline:
+      case Visual.gantt:
+      case Visual.calendarHeatmap:
+      case Visual.horizon:
+      case Visual.controlChart:
+      case Visual.burndown:
+      case Visual.cyclePlot:
+        return TimeCatalogChart(
+          page: page,
+          visual: visual,
+          x: dims.first,
+          measures: ms,
           height: height ?? (full ? 420 : 260),
         );
       case Visual.bar:
