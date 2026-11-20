@@ -166,6 +166,53 @@ DatasetPage _makePage(
   );
 }
 
+DatasetPage _makeDiagramPage(String id, {String lang = 'en'}) {
+  final isTh = lang == 'th';
+  final isPt = lang == 'pt-BR';
+  String lbl(String en, String pt, String th) => isTh ? th : (isPt ? pt : en);
+  final rows = <Map<String, dynamic>>[
+    {'src': lbl('Start', 'Início', 'เริ่ม'), 'dst': lbl('Check', 'Validar', 'ตรวจ'), 'grp': lbl('Edge', 'Borda', 'ขอบ'), 'v1': 90},
+    {'src': lbl('Check', 'Validar', 'ตรวจ'), 'dst': lbl('Fast', 'Rápido', 'เร็ว'), 'grp': lbl('Core', 'Núcleo', 'แกน'), 'v1': 55},
+    {'src': lbl('Check', 'Validar', 'ตรวจ'), 'dst': lbl('Queue', 'Fila', 'คิว'), 'grp': lbl('Core', 'Núcleo', 'แกน'), 'v1': 35},
+    {'src': lbl('Fast', 'Rápido', 'เร็ว'), 'dst': lbl('Store', 'Banco', 'คลัง'), 'grp': lbl('Data', 'Dados', 'ข้อมูล'), 'v1': 45},
+    {'src': lbl('Queue', 'Fila', 'คิว'), 'dst': lbl('Store', 'Banco', 'คลัง'), 'grp': lbl('Data', 'Dados', 'ข้อมูล'), 'v1': 30},
+    if (id == 'state_diagram')
+      {'src': lbl('Store', 'Banco', 'คลัง'), 'dst': lbl('Check', 'Validar', 'ตรวจ'), 'grp': lbl('Core', 'Núcleo', 'แกน'), 'v1': 20},
+    if (id == 'chord' || id == 'adjacency_matrix' || id == 'alluvial' || id == 'sankey')
+      {'src': lbl('Start', 'Início', 'เริ่ม'), 'dst': lbl('Store', 'Banco', 'คลัง'), 'grp': lbl('Edge', 'Borda', 'ขอบ'), 'v1': 25},
+  ];
+  return DatasetPage(
+    descriptor: DatasetDescriptor(
+      datasetId: 'diagram_$id',
+      title: _localizedTitle(lang, id),
+      description: 'Realistic diagram fixture ($id)',
+      equation: null,
+      fields: [
+        FieldInfo(name: 'src', label: lbl('Source', 'Origem', 'ต้นทาง'), type: 'string', role: 'dimension'),
+        FieldInfo(name: 'dst', label: lbl('Target', 'Destino', 'ปลายทาง'), type: 'string', role: 'dimension'),
+        FieldInfo(name: 'grp', label: lbl('Lane', 'Raia', 'กลุ่ม'), type: 'string', role: 'dimension'),
+        FieldInfo(name: 'v1', label: lbl('Flow', 'Fluxo', 'ปริมาณ'), type: 'integer', role: 'measure', unit: 'u'),
+      ],
+      filters: const [],
+      meta: const DatasetMeta(
+        source: 'Fixture',
+        sourceUrl: 'https://reports.asodya.com',
+        periodStart: '2026-01-01',
+        periodEnd: '2026-01-31',
+        timezone: 'UTC',
+        freshnessMode: 'daily',
+        expectedRefreshMinutes: 60,
+        updatedAt: 1700000000,
+        tier: 'public',
+      ),
+    ),
+    rows: rows,
+    offset: 0,
+    limit: rows.length,
+    totalRows: rows.length,
+  );
+}
+
 Future<void> _pumpAndGolden(
   WidgetTester tester, {
   required String group,
@@ -182,19 +229,22 @@ Future<void> _pumpAndGolden(
     Locale('th'),
   ]) {
     final tag = locale.toLanguageTag();
-    final page = _makePage('${group}_$id', dimField, dimType, count, lang: tag);
+    final isDiag = group == 'diagram';
+    final page = isDiag
+        ? _makeDiagramPage(id, lang: tag)
+        : _makePage('${group}_$id', dimField, dimType, count, lang: tag);
     final tpl = VisualTemplate(
       templateId: id,
       version: 1,
-      kind: 'chart',
+      kind: isDiag ? 'diagram' : 'chart',
       visual: id,
       title: _localizedTitle(tag, id),
       slots: [
         TemplateSlot(
           slotName: dimSlot,
           role: 'dimension',
-          minCount: 1,
-          maxCount: 1,
+          minCount: isDiag ? 2 : 1,
+          maxCount: isDiag ? 3 : 1,
           acceptedTypes: [dimType],
         ),
         TemplateSlot(
@@ -210,7 +260,7 @@ Future<void> _pumpAndGolden(
       template: id,
       version: 1,
       mapping: {
-        dimSlot: [dimField],
+        dimSlot: isDiag ? ['src', 'dst', 'grp'] : [dimField],
         'value': twoMeasures ? ['v1', 'v2'] : ['v1'],
       },
     );

@@ -131,7 +131,12 @@ class _SetsPainter extends CustomPainter {
     final tp = TextPainter(
       text: TextSpan(
         text: text,
-        style: TextStyle(color: color ?? palette.textPrimary, fontSize: fontSize),
+        style: TextStyle(
+          color: color ?? palette.textPrimary,
+          fontSize: fontSize,
+          fontFamily: ReportPalette.font,
+          fontFamilyFallback: ReportPalette.fontFallback,
+        ),
       ),
       textDirection: TextDirection.ltr,
       maxLines: 1,
