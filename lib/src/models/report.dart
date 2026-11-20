@@ -1,4 +1,3 @@
-
 import 'template.dart';
 
 class ReportPeriod {
@@ -16,7 +15,40 @@ class ReportPeriod {
 }
 
 /// Chart types of the frontend.
-enum Visual { auto, kpi, line, bar, stackedBar, hbar, donut, combo, curve, map, table, sankey }
+enum Visual {
+  auto,
+  kpi,
+  line,
+  bar,
+  rankingBar,
+  groupedBar,
+  stackedBar,
+  stackedBar100,
+  divergingBar,
+  floatingBar,
+  lollipop,
+  dotPlot,
+  dumbbell,
+  slope,
+  bullet,
+  utilizationBar,
+  pictogram,
+  radialBar,
+  circularBar,
+  radar,
+  parallelCoordinates,
+  marimekko,
+  waterfall,
+  pareto,
+  smallMultiples,
+  hbar,
+  donut,
+  combo,
+  curve,
+  map,
+  table,
+  sankey,
+}
 
 /// One card of a section: a dataset and how to show it.
 class Slot {
@@ -36,9 +68,9 @@ class Slot {
     this.dimensions = const [],
   });
 
-  String get key => visual == Visual.auto ? datasetId : '$datasetId.${visual.name}';
+  String get key =>
+      visual == Visual.auto ? datasetId : '$datasetId.${visual.name}';
 }
-
 
 /// Report contract models (API: /projects/{project}/reports/{report}, .../datasets/{id}
 /// and the guest showcase /projects/{project}/showcase/{report}).
@@ -71,20 +103,27 @@ class FieldInfo {
   });
 
   bool get isDimension => role == 'dimension';
-  bool get isNumeric => const {'integer', 'float', 'percent', 'hour', 'latitude', 'longitude'}.contains(type);
+  bool get isNumeric => const {
+    'integer',
+    'float',
+    'percent',
+    'hour',
+    'latitude',
+    'longitude',
+  }.contains(type);
   bool get isTime => const {'date', 'datetime', 'hour'}.contains(type);
 
   factory FieldInfo.fromJson(Map<String, dynamic> j) => FieldInfo(
-        name: j['name'] as String,
-        label: (j['label'] ?? j['name']) as String,
-        type: (j['type'] ?? 'string') as String,
-        role: (j['role'] ?? 'measure') as String,
-        unit: j['unit'] as String?,
-        decimals: (j['decimals'] as num?)?.toInt(),
-        denominatorField: j['denominator_field'] as String?,
-        denominatorText: j['denominator_text'] as String?,
-        missingMeans: (j['missing_means'] ?? 'no_data') as String,
-      );
+    name: j['name'] as String,
+    label: (j['label'] ?? j['name']) as String,
+    type: (j['type'] ?? 'string') as String,
+    role: (j['role'] ?? 'measure') as String,
+    unit: j['unit'] as String?,
+    decimals: (j['decimals'] as num?)?.toInt(),
+    denominatorField: j['denominator_field'] as String?,
+    denominatorText: j['denominator_text'] as String?,
+    missingMeans: (j['missing_means'] ?? 'no_data') as String,
+  );
 }
 
 class DatasetMeta {
@@ -119,7 +158,8 @@ class DatasetMeta {
       periodEnd: '${j['period_end'] ?? ''}',
       timezone: '${j['timezone'] ?? 'UTC'}',
       freshnessMode: '${j['freshness_mode'] ?? 'live'}',
-      expectedRefreshMinutes: (j['expected_refresh_minutes'] as num?)?.toInt() ?? 60,
+      expectedRefreshMinutes:
+          (j['expected_refresh_minutes'] as num?)?.toInt() ?? 60,
       updatedAt: (j['updated_at'] as num?)?.toInt() ?? 0,
       tier: '${j['tier'] ?? 'sample'}',
     );
@@ -132,7 +172,8 @@ class FilterOption {
 
   const FilterOption(this.value, this.label);
 
-  factory FilterOption.fromJson(Map<String, dynamic> j) => FilterOption(j['value'], '${j['label'] ?? j['value']}');
+  factory FilterOption.fromJson(Map<String, dynamic> j) =>
+      FilterOption(j['value'], '${j['label'] ?? j['value']}');
 }
 
 class FilterInfo {
@@ -145,16 +186,25 @@ class FilterInfo {
   final dynamic min;
   final dynamic max;
 
-  const FilterInfo({required this.field, required this.label, required this.type, this.options = const [], this.min, this.max});
+  const FilterInfo({
+    required this.field,
+    required this.label,
+    required this.type,
+    this.options = const [],
+    this.min,
+    this.max,
+  });
 
   factory FilterInfo.fromJson(Map<String, dynamic> j) => FilterInfo(
-        field: j['field'] as String,
-        label: (j['label'] ?? j['field']) as String,
-        type: (j['type'] ?? 'category') as String,
-        options: ((j['options'] as List?) ?? const []).map((e) => FilterOption.fromJson(e as Map<String, dynamic>)).toList(),
-        min: j['min'],
-        max: j['max'],
-      );
+    field: j['field'] as String,
+    label: (j['label'] ?? j['field']) as String,
+    type: (j['type'] ?? 'category') as String,
+    options: ((j['options'] as List?) ?? const [])
+        .map((e) => FilterOption.fromJson(e as Map<String, dynamic>))
+        .toList(),
+    min: j['min'],
+    max: j['max'],
+  );
 }
 
 class DatasetDescriptor {
@@ -189,13 +239,18 @@ class DatasetDescriptor {
     return null;
   }
 
-  factory DatasetDescriptor.fromJson(Map<String, dynamic> j) => DatasetDescriptor(
+  factory DatasetDescriptor.fromJson(Map<String, dynamic> j) =>
+      DatasetDescriptor(
         datasetId: j['dataset_id'] as String,
         title: (j['title'] ?? j['dataset_id']) as String,
         description: (j['description'] ?? '') as String,
         equation: j['equation'] as String?,
-        fields: ((j['fields'] as List?) ?? const []).map((e) => FieldInfo.fromJson(e as Map<String, dynamic>)).toList(),
-        filters: ((j['filters'] as List?) ?? const []).map((e) => FilterInfo.fromJson(e as Map<String, dynamic>)).toList(),
+        fields: ((j['fields'] as List?) ?? const [])
+            .map((e) => FieldInfo.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        filters: ((j['filters'] as List?) ?? const [])
+            .map((e) => FilterInfo.fromJson(e as Map<String, dynamic>))
+            .toList(),
         dataTier: (j['data_tier'] ?? 'sample') as String,
         canView: (j['can_view'] as bool?) ?? true,
         visibility: (j['visibility'] ?? 'public') as String,
@@ -211,12 +266,22 @@ class AccessSummary {
   final int needsSignIn;
   final int needsAdmin;
 
-  const AccessSummary({this.total = 0, this.readable = 0, this.needsSignIn = 0, this.needsAdmin = 0});
+  const AccessSummary({
+    this.total = 0,
+    this.readable = 0,
+    this.needsSignIn = 0,
+    this.needsAdmin = 0,
+  });
 
   factory AccessSummary.fromJson(dynamic j) {
     if (j is! Map) return const AccessSummary();
     int n(String k) => (j[k] as num?)?.toInt() ?? 0;
-    return AccessSummary(total: n('total'), readable: n('readable'), needsSignIn: n('needs_sign_in'), needsAdmin: n('needs_admin'));
+    return AccessSummary(
+      total: n('total'),
+      readable: n('readable'),
+      needsSignIn: n('needs_sign_in'),
+      needsAdmin: n('needs_admin'),
+    );
   }
 }
 
@@ -259,19 +324,21 @@ class ReportView {
   }
 
   factory ReportView.fromJson(Map<String, dynamic> j) => ReportView(
-        project: j['project'] as String,
-        report: j['report'] as String,
-        title: (j['title'] ?? j['report']) as String,
-        description: (j['description'] ?? '') as String,
-        tags: ((j['tags'] as List?) ?? const []).map((e) => '$e').toList(),
-        period: ReportPeriod.fromJson(j['period']),
-        updatedAt: (j['updated_at'] ?? '') as String,
-        datasets: ((j['datasets'] as List?) ?? const []).map((e) => DatasetDescriptor.fromJson(e as Map<String, dynamic>)).toList(),
-        dataTier: (j['data_tier'] ?? 'sample') as String,
-        visibility: (j['visibility'] ?? 'public') as String,
-        tiers: ((j['tiers'] as List?) ?? const []).map((e) => '$e').toList(),
-        access: AccessSummary.fromJson(j['access']),
-      );
+    project: j['project'] as String,
+    report: j['report'] as String,
+    title: (j['title'] ?? j['report']) as String,
+    description: (j['description'] ?? '') as String,
+    tags: ((j['tags'] as List?) ?? const []).map((e) => '$e').toList(),
+    period: ReportPeriod.fromJson(j['period']),
+    updatedAt: (j['updated_at'] ?? '') as String,
+    datasets: ((j['datasets'] as List?) ?? const [])
+        .map((e) => DatasetDescriptor.fromJson(e as Map<String, dynamic>))
+        .toList(),
+    dataTier: (j['data_tier'] ?? 'sample') as String,
+    visibility: (j['visibility'] ?? 'public') as String,
+    tiers: ((j['tiers'] as List?) ?? const []).map((e) => '$e').toList(),
+    access: AccessSummary.fromJson(j['access']),
+  );
 }
 
 /// Where a result comes from (API `lineage`).
@@ -280,7 +347,11 @@ class Lineage {
   final int calculationVersion;
   final String calculatedAt;
 
-  const Lineage({this.calculationId = '', this.calculationVersion = 0, this.calculatedAt = ''});
+  const Lineage({
+    this.calculationId = '',
+    this.calculationVersion = 0,
+    this.calculatedAt = '',
+  });
 
   static Lineage? fromJson(dynamic j) => j is Map
       ? Lineage(
@@ -300,17 +371,31 @@ class DatasetPage {
   final Lineage? lineage;
   final CardVisualBinding? visual;
 
-  const DatasetPage({required this.descriptor, required this.rows, required this.offset, required this.limit, required this.totalRows, this.lineage, this.visual});
+  const DatasetPage({
+    required this.descriptor,
+    required this.rows,
+    required this.offset,
+    required this.limit,
+    required this.totalRows,
+    this.lineage,
+    this.visual,
+  });
 
   factory DatasetPage.fromJson(Map<String, dynamic> j) => DatasetPage(
-        descriptor: DatasetDescriptor.fromJson(j),
-        rows: ((j['rows'] as List?) ?? const []).map((e) => Map<String, dynamic>.from(e as Map)).toList(),
-        offset: (j['offset'] as num?)?.toInt() ?? 0,
-        limit: (j['limit'] as num?)?.toInt() ?? 0,
-        totalRows: (j['total_rows'] as num?)?.toInt() ?? 0,
-        lineage: Lineage.fromJson(j['lineage']),
-        visual: j['visual'] is Map ? CardVisualBinding.fromJson(Map<String, dynamic>.from(j['visual'] as Map)) : null,
-      );
+    descriptor: DatasetDescriptor.fromJson(j),
+    rows: ((j['rows'] as List?) ?? const [])
+        .map((e) => Map<String, dynamic>.from(e as Map))
+        .toList(),
+    offset: (j['offset'] as num?)?.toInt() ?? 0,
+    limit: (j['limit'] as num?)?.toInt() ?? 0,
+    totalRows: (j['total_rows'] as num?)?.toInt() ?? 0,
+    lineage: Lineage.fromJson(j['lineage']),
+    visual: j['visual'] is Map
+        ? CardVisualBinding.fromJson(
+            Map<String, dynamic>.from(j['visual'] as Map),
+          )
+        : null,
+  );
 }
 
 /// The guest view of a report (`GET /projects/{p}/showcase/{r}`): the report, and the
@@ -329,7 +414,11 @@ class Showcase {
       final id = '${card['dataset_id']}';
       final d = card['descriptor'];
       final descriptor = d is Map
-          ? DatasetDescriptor.fromJson({...Map<String, dynamic>.from(d), 'visibility': card['visibility'], 'can_view': true})
+          ? DatasetDescriptor.fromJson({
+              ...Map<String, dynamic>.from(d),
+              'visibility': card['visibility'],
+              'can_view': true,
+            })
           : DatasetDescriptor(
               datasetId: id,
               title: '${card['title'] ?? id}',
