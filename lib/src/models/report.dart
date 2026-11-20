@@ -94,6 +94,21 @@ enum Visual {
   map,
   table,
   sankey,
+  alluvial,
+  chord,
+  arcDiagram,
+  flowchart,
+  layeredDag,
+  sequenceDiagram,
+  stateDiagram,
+  swimlane,
+  treeOrg,
+  dendrogram,
+  mindMap,
+  network,
+  adjacencyMatrix,
+  erDiagram,
+  architectureDiagram,
 }
 
 /// One card of a section: a dataset and how to show it.

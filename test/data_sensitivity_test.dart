@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:reports_view/reports_view.dart';
+import 'package:reports_view/src/charts/diagram_charts.dart';
 import 'package:reports_view/src/charts/relation_charts.dart';
 
 const _palette = ReportPalette(
@@ -215,6 +216,12 @@ void main() {
     'scatter', 'bubble', 'heatmap', 'correlation_matrix', 'hexbin',
     'contour_2d', 'splom', 'quadrant', 'ternary',
   ];
+  const diagramIds = [
+    'sankey', 'alluvial', 'chord', 'arc_diagram', 'flowchart', 'layered_dag',
+    'sequence_diagram', 'state_diagram', 'swimlane', 'tree_org', 'dendrogram',
+    'mind_map', 'network', 'adjacency_matrix', 'er_diagram',
+    'architecture_diagram',
+  ];
 
   final specs = <(String, String, String, String, int, int)>[
     for (final id in comparisonIds)
@@ -233,6 +240,8 @@ void main() {
       (id, 'category', 'string', id == 'ridgeline' ? 'group' : 'cohort', 1, 1),
     for (final id in relationIds)
       (id, 'category', 'string', 'item', 1, id == 'ternary' ? 3 : 2),
+    for (final id in diagramIds)
+      (id, 'category', 'string', 'item', id == 'sankey' ? 2 : 1, 1),
   ];
 
   for (final (id, dimSlot, dimType, dimField, dCount, mCount) in specs) {
@@ -330,5 +339,33 @@ void main() {
     expect(dup, ['V1', 'V2', 'Other']);
     final three = RelationCatalogChart.ternaryCornerLabels(a, b, c);
     expect(three, ['V1', 'V2', 'V3']);
+  });
+
+  test('semantic: diagram adjacency matrix, layered DAG, and network positions', () {
+    const edges = [
+      DiagramEdge(source: 'A', target: 'B', group: 'G1', value: 10),
+      DiagramEdge(source: 'B', target: 'C', group: 'G1', value: 5),
+      DiagramEdge(source: 'A', target: 'C', group: 'G2', value: 3),
+    ];
+    final nodes = DiagramCatalogChart.collectNodes(edges);
+    expect(nodes, ['A', 'B', 'C']);
+
+    final mat = DiagramCatalogChart.computeAdjacencyMatrix(nodes, edges);
+    expect(mat[0][1], 10);
+    expect(mat[1][2], 5);
+    expect(mat[0][2], 3);
+    expect(mat[2][0], 0);
+
+    final layers = DiagramCatalogChart.computeLayeredOrder(nodes, edges);
+    expect(layers['A'], 0);
+    expect(layers['B'], greaterThan(layers['A']!));
+    expect(layers['C'], greaterThan(layers['B']!));
+
+    final netPos = DiagramCatalogChart.computeNetworkPositions(nodes, edges);
+    expect(netPos.keys, containsAll(['A', 'B', 'C']));
+    for (final p in netPos.values) {
+      expect(p.dx, inInclusiveRange(0.0, 1.0));
+      expect(p.dy, inInclusiveRange(0.0, 1.0));
+    }
   });
 }
