@@ -13,6 +13,7 @@ import 'line_charts.dart';
 import 'map_chart.dart';
 import 'part_whole_charts.dart';
 import 'distribution_charts.dart';
+import 'relation_charts.dart';
 import 'sankey_chart.dart';
 import 'time_charts.dart';
 
@@ -236,6 +237,15 @@ class VisualChooser {
     'qqPlot' || 'qq_plot' => Visual.qqPlot,
     'populationPyramid' || 'population_pyramid' => Visual.populationPyramid,
     'raincloud' => Visual.raincloud,
+    'scatter' => Visual.scatter,
+    'bubble' => Visual.bubble,
+    'heatmap' => Visual.heatmap,
+    'correlationMatrix' || 'correlation_matrix' => Visual.correlationMatrix,
+    'hexbin' => Visual.hexbin,
+    'contour2d' || 'contour_2d' => Visual.contour2d,
+    'splom' => Visual.splom,
+    'quadrant' => Visual.quadrant,
+    'ternary' => Visual.ternary,
     'combo' => Visual.combo,
     'curve' => Visual.curve,
     'map' => Visual.map,
@@ -524,6 +534,24 @@ class VisualChooser {
           label: dims.first,
           value: ms.first,
           secondValue: ms.length > 1 ? ms[1] : null,
+          height: height ?? (full ? 420 : 260),
+        );
+      case Visual.scatter:
+      case Visual.bubble:
+      case Visual.heatmap:
+      case Visual.correlationMatrix:
+      case Visual.hexbin:
+      case Visual.contour2d:
+      case Visual.splom:
+      case Visual.quadrant:
+      case Visual.ternary:
+        return RelationCatalogChart(
+          page: page,
+          visual: visual,
+          label: dims.first,
+          xMeasure: ms.first,
+          yMeasure: ms.length > 1 ? ms[1] : ms.first,
+          sizeMeasure: ms.length > 2 ? ms[2] : null,
           height: height ?? (full ? 420 : 260),
         );
       case Visual.combo:
