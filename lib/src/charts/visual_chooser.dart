@@ -11,6 +11,7 @@ import 'format.dart';
 import 'kpi_tiles.dart';
 import 'line_charts.dart';
 import 'map_chart.dart';
+import 'part_whole_charts.dart';
 import 'sankey_chart.dart';
 import 'time_charts.dart';
 
@@ -214,6 +215,16 @@ class VisualChooser {
     'pareto' => Visual.pareto,
     'smallMultiples' || 'small_multiples' => Visual.smallMultiples,
     'donut' => Visual.donut,
+    'pie' => Visual.pie,
+    'gauge' => Visual.gauge,
+    'meter' => Visual.meter,
+    'treemap' => Visual.treemap,
+    'sunburst' => Visual.sunburst,
+    'icicle' => Visual.icicle,
+    'circlePacking' || 'circle_packing' => Visual.circlePacking,
+    'waffle' => Visual.waffle,
+    'nightingaleRose' || 'nightingale_rose' => Visual.nightingaleRose,
+    'funnel' => Visual.funnel,
     'combo' => Visual.combo,
     'curve' => Visual.curve,
     'map' => Visual.map,
@@ -468,6 +479,23 @@ class VisualChooser {
           value: main,
           share: second?.type == 'percent' ? second : null,
           listMaxHeight: full ? frame : null,
+        );
+      case Visual.pie:
+      case Visual.gauge:
+      case Visual.meter:
+      case Visual.treemap:
+      case Visual.sunburst:
+      case Visual.icicle:
+      case Visual.circlePacking:
+      case Visual.waffle:
+      case Visual.nightingaleRose:
+      case Visual.funnel:
+        return PartWholeCatalogChart(
+          page: page,
+          visual: visual,
+          label: dims.first,
+          value: ms.first,
+          height: height ?? (full ? 420 : 260),
         );
       case Visual.combo:
         return AlignedCharts(
