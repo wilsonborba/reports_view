@@ -402,6 +402,7 @@ void main() {
     'architecture_diagram',
   ];
   const setsIds = ['venn', 'euler', 'upset'];
+  const geoIds = ['bubble_map', 'choropleth', 'geo_heatmap', 'flow_map', 'hex_tile_map'];
 
   for (final id in comparisonIds) {
     testWidgets('golden comparison/$id', (tester) async {
@@ -503,6 +504,21 @@ void main() {
         dimType: 'string',
         dimField: 'item',
         count: 5,
+        twoMeasures: false,
+      );
+    });
+  }
+
+  for (final id in geoIds) {
+    testWidgets('golden geo/$id', (tester) async {
+      await _pumpAndGolden(
+        tester,
+        group: 'geo',
+        id: id,
+        dimSlot: 'category',
+        dimType: 'string',
+        dimField: 'item',
+        count: 6,
         twoMeasures: false,
       );
     });

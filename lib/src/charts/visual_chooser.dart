@@ -9,6 +9,7 @@ import 'data_table_view.dart';
 import 'diagram_charts.dart';
 import 'donut_chart.dart';
 import 'format.dart';
+import 'geo_charts.dart';
 import 'kpi_tiles.dart';
 import 'line_charts.dart';
 import 'map_chart.dart';
@@ -271,6 +272,11 @@ class VisualChooser {
     'venn' => Visual.venn,
     'euler' => Visual.euler,
     'upset' => Visual.upset,
+    'bubbleMap' || 'bubble_map' => Visual.bubbleMap,
+    'choropleth' => Visual.choropleth,
+    'geoHeatmap' || 'geo_heatmap' => Visual.geoHeatmap,
+    'flowMap' || 'flow_map' => Visual.flowMap,
+    'hexTileMap' || 'hex_tile_map' => Visual.hexTileMap,
     _ => Visual.auto,
   };
 
@@ -605,6 +611,18 @@ class VisualChooser {
           visual: visual,
           label: dims.first,
           measure: ms.first,
+          height: height ?? (full ? 420 : 260),
+        );
+      case Visual.bubbleMap:
+      case Visual.choropleth:
+      case Visual.geoHeatmap:
+      case Visual.flowMap:
+      case Visual.hexTileMap:
+        return GeoCatalogChart(
+          page: page,
+          visual: visual,
+          label: dims.first,
+          value: ms.first,
           height: height ?? (full ? 420 : 260),
         );
       case Visual.combo:

@@ -112,6 +112,11 @@ enum Visual {
   venn,
   euler,
   upset,
+  bubbleMap,
+  choropleth,
+  geoHeatmap,
+  flowMap,
+  hexTileMap,
 }
 
 /// One card of a section: a dataset and how to show it.
