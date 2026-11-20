@@ -273,6 +273,83 @@ class _TimeSeriesPainter extends CustomPainter {
       );
     }
 
+    if (visual == Visual.horizon) {
+      final m = measures.first;
+      final vals = [for (var i = 0; i < n; i++) _val(i, m)];
+      final maxAbs = vals.fold<double>(
+        1e-9,
+        (a, v) => math.max(a, v.abs()),
+      );
+      const bands = 3;
+      final bandSize = maxAbs / bands;
+      final baseY = size.height - padY;
+      for (var b = 0; b < bands; b++) {
+        final lo = b * bandSize;
+        final posPath = Path()..moveTo(padX, baseY);
+        final negPath = Path()..moveTo(padX, baseY);
+        for (var i = 0; i < n; i++) {
+          final cx = padX + i * stepX;
+          final v = vals[i];
+          final posFrac =
+              v > lo ? ((v - lo) / bandSize).clamp(0.0, 1.0) : 0.0;
+          final negFrac =
+              -v > lo ? ((-v - lo) / bandSize).clamp(0.0, 1.0) : 0.0;
+          posPath.lineTo(cx, baseY - posFrac * h);
+          negPath.lineTo(cx, baseY - negFrac * h);
+        }
+        posPath
+          ..lineTo(padX + (n - 1) * stepX, baseY)
+          ..close();
+        negPath
+          ..lineTo(padX + (n - 1) * stepX, baseY)
+          ..close();
+        final alpha = 0.25 + b * 0.28;
+        canvas.drawPath(
+          posPath,
+          Paint()..color = palette.seriesAt(0).withValues(alpha: alpha),
+        );
+        canvas.drawPath(
+          negPath,
+          Paint()..color = palette.negative.withValues(alpha: alpha),
+        );
+      }
+      return;
+    }
+
+    if (visual == Visual.streamgraph) {
+      final totals = [
+        for (var i = 0; i < n; i++)
+          measures.fold<double>(0.0, (a, f) => a + math.max(0.0, _val(i, f))),
+      ];
+      final cum = List<double>.generate(
+        n,
+        (i) => (maxY - totals[i]) * 0.5,
+      );
+      for (var mIdx = 0; mIdx < measures.length; mIdx++) {
+        final m = measures[mIdx];
+        final color = palette.seriesAt(mIdx);
+        final area = Path();
+        for (var i = 0; i < n; i++) {
+          final cx = padX + i * stepX;
+          final next = cum[i] + math.max(0.0, _val(i, m));
+          final yTop = yAt(next);
+          if (i == 0) {
+            area.moveTo(cx, yTop);
+          } else {
+            area.lineTo(cx, yTop);
+          }
+        }
+        for (var i = n - 1; i >= 0; i--) {
+          final cx = padX + i * stepX;
+          area.lineTo(cx, yAt(cum[i]));
+          cum[i] += math.max(0.0, _val(i, m));
+        }
+        area.close();
+        canvas.drawPath(area, Paint()..color = color.withValues(alpha: 0.72));
+      }
+      return;
+    }
+
     for (var mIdx = 0; mIdx < measures.length; mIdx++) {
       final m = measures[mIdx];
       final color = palette.seriesAt(mIdx);
