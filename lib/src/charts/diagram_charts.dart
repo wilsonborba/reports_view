@@ -265,7 +265,12 @@ class _DiagramPainter extends CustomPainter {
     final tp = TextPainter(
       text: TextSpan(
         text: text,
-        style: TextStyle(color: color ?? palette.textPrimary, fontSize: fontSize),
+        style: TextStyle(
+          color: color ?? palette.textPrimary,
+          fontSize: fontSize,
+          fontFamily: ReportPalette.font,
+          fontFamilyFallback: ReportPalette.fontFallback,
+        ),
       ),
       textDirection: TextDirection.ltr,
       maxLines: 1,
@@ -480,33 +485,83 @@ class _DiagramPainter extends CustomPainter {
     }
   }
 
+  void _drawDiamond(
+    Canvas canvas,
+    Offset center,
+    double w,
+    double h,
+    Color accent,
+    String title,
+  ) {
+    final path = Path()
+      ..moveTo(center.dx, center.dy - h / 2)
+      ..lineTo(center.dx + w / 2, center.dy)
+      ..lineTo(center.dx, center.dy + h / 2)
+      ..lineTo(center.dx - w / 2, center.dy)
+      ..close();
+    canvas.drawPath(path, Paint()..color = palette.surface);
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = accent
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5,
+    );
+    _drawText(canvas, title, center, maxWidth: w * 0.72, fontSize: 9, center: true);
+  }
+
   void _paintFlowchart(Canvas canvas, Size size) {
-    final n = math.min(nodes.length, 6);
-    final w = math.min(92.0, (size.width - 32 - (n - 1) * 14) / n);
-    final totalW = n * w + (n - 1) * 14;
-    final startX = (size.width - totalW) / 2;
-    final cy = size.height / 2;
+    final layers = DiagramCatalogChart.computeLayeredOrder(nodes, edges);
+    final maxL = layers.values.fold<int>(0, math.max);
+    final byLayer = <int, List<String>>{};
+    for (final n in nodes) {
+      byLayer.putIfAbsent(layers[n] ?? 0, () => []).add(n);
+    }
+    final colCount = maxL + 1;
+    final colW = (size.width - 28) / colCount;
+    final outDeg = <String, int>{};
+    for (final e in edges) {
+      outDeg[e.source] = (outDeg[e.source] ?? 0) + 1;
+    }
+    final centers = <String, Offset>{};
+    for (var l = 0; l < colCount; l++) {
+      final list = byLayer[l] ?? const [];
+      final rowH = (size.height - 24) / math.max(1, list.length);
+      for (var r = 0; r < list.length; r++) {
+        centers[list[r]] = Offset(14 + (l + 0.5) * colW, 12 + (r + 0.5) * rowH);
+      }
+    }
     final weights = _nodeWeights;
     final maxW = weights.values.fold<double>(1.0, math.max);
-    for (var i = 0; i < n; i++) {
-      final x = startX + i * (w + 14);
-      final rect = Rect.fromCenter(center: Offset(x + w / 2, cy), width: w, height: 40);
-      _drawBox(
-        canvas,
-        rect,
-        palette.seriesAt(i),
-        nodes[i],
-        pill: i == 0 || i == n - 1,
-        weightRatio: (weights[nodes[i]] ?? 0) / maxW,
-      );
-      if (i + 1 < n) {
-        final edgeW = i < edges.length ? 1.0 + (edges[i].value / _maxVal) * 2.5 : 1.4;
+    for (final e in edges) {
+      final from = centers[e.source];
+      final to = centers[e.target];
+      if (from != null && to != null && from != to) {
         _drawArrow(
           canvas,
-          Offset(rect.right, cy),
-          Offset(rect.right + 14, cy),
+          from + const Offset(28, 0),
+          to - const Offset(28, 0),
           palette.textMuted,
-          width: edgeW,
+          width: 1.0 + (e.value / _maxVal) * 2.2,
+        );
+      }
+    }
+    var idx = 0;
+    for (final entry in centers.entries) {
+      final n = entry.key;
+      final c = palette.seriesAt(idx++);
+      final isDecision = (outDeg[n] ?? 0) >= 2;
+      if (isDecision) {
+        _drawDiamond(canvas, entry.value, math.min(72, colW - 8), 44, c, n);
+      } else {
+        final isTerminal = idx == 1 || (outDeg[n] ?? 0) == 0;
+        _drawBox(
+          canvas,
+          Rect.fromCenter(center: entry.value, width: math.min(68, colW - 10), height: 30),
+          c,
+          n,
+          pill: isTerminal,
+          weightRatio: (weights[n] ?? 0) / maxW,
         );
       }
     }
@@ -674,50 +729,75 @@ class _DiagramPainter extends CustomPainter {
       _drawText(canvas, lanes[l], Offset(14, y + 6), maxWidth: 72, fontSize: 10);
       final laneNodes = laneNodeSets[l];
       for (var j = 0; j < laneNodes.length; j++) {
+        final box = Rect.fromLTWH(96 + j * 84, y + laneH / 2 - 14, 72, 28);
         _drawBox(
           canvas,
-          Rect.fromLTWH(96 + j * 84, y + laneH / 2 - 14, 72, 28),
+          box,
           palette.seriesAt(l),
           laneNodes[j],
           weightRatio: (weights[laneNodes[j]] ?? 0) / maxW,
         );
       }
     }
+    // Draw cross-lane hand-off arrows using computed node centers.
+    final nodePos = <String, Offset>{};
+    for (var l = 0; l < lanes.length; l++) {
+      final y = 8 + l * laneH;
+      final laneNodes = laneNodeSets[l];
+      for (var j = 0; j < laneNodes.length; j++) {
+        nodePos[laneNodes[j]] = Offset(96 + j * 84 + 36, y + laneH / 2);
+      }
+    }
+    for (final e in edges) {
+      final p1 = nodePos[e.source];
+      final p2 = nodePos[e.target];
+      if (p1 != null && p2 != null && p1 != p2) {
+        _drawArrow(canvas, p1, p2, palette.accent.withValues(alpha: 0.7), width: 1.2);
+      }
+    }
   }
 
   void _paintTreeOrg(Canvas canvas, Size size) {
-    final root = nodes.first;
-    final children = nodes.skip(1).take(5).toList();
+    final layers = DiagramCatalogChart.computeLayeredOrder(nodes, edges);
+    final maxL = layers.values.fold<int>(0, math.max).clamp(0, 3);
+    final byLevel = <int, List<String>>{};
+    for (final n in nodes) {
+      final lvl = (layers[n] ?? 0).clamp(0, 3);
+      byLevel.putIfAbsent(lvl, () => []).add(n);
+    }
     final weights = _nodeWeights;
     final maxW = weights.values.fold<double>(1.0, math.max);
-    final rootCenter = Offset(size.width / 2, 34);
-    _drawBox(
-      canvas,
-      Rect.fromCenter(center: rootCenter, width: 96, height: 30),
-      palette.accent,
-      root,
-      weightRatio: (weights[root] ?? 0) / maxW,
-    );
-    if (children.isEmpty) return;
-    final step = (size.width - 32) / children.length;
-    final midY = size.height * 0.45;
-    final childY = size.height * 0.72;
+    final levelH = (size.height - 24) / (maxL + 1);
+    final centers = <String, Offset>{};
+    for (var l = 0; l <= maxL; l++) {
+      final row = (byLevel[l] ?? const []).take(5).toList();
+      final step = (size.width - 28) / math.max(1, row.length);
+      final cy = 12 + (l + 0.5) * levelH;
+      for (var i = 0; i < row.length; i++) {
+        centers[row[i]] = Offset(14 + (i + 0.5) * step, cy);
+      }
+    }
     final linePaint = Paint()
       ..color = palette.border
       ..strokeWidth = 1.4;
-    canvas.drawLine(Offset(rootCenter.dx, 49), Offset(rootCenter.dx, midY), linePaint);
-    final leftX = 16 + 0.5 * step;
-    final rightX = 16 + (children.length - 0.5) * step;
-    canvas.drawLine(Offset(leftX, midY), Offset(rightX, midY), linePaint);
-    for (var i = 0; i < children.length; i++) {
-      final cx = 16 + (i + 0.5) * step;
-      canvas.drawLine(Offset(cx, midY), Offset(cx, childY - 15), linePaint);
+    for (final e in edges) {
+      final p1 = centers[e.source];
+      final p2 = centers[e.target];
+      if (p1 != null && p2 != null && p2.dy > p1.dy) {
+        final midY = (p1.dy + p2.dy) / 2;
+        canvas.drawLine(Offset(p1.dx, p1.dy + 14), Offset(p1.dx, midY), linePaint);
+        canvas.drawLine(Offset(p1.dx, midY), Offset(p2.dx, midY), linePaint);
+        canvas.drawLine(Offset(p2.dx, midY), Offset(p2.dx, p2.dy - 14), linePaint);
+      }
+    }
+    var idx = 0;
+    for (final entry in centers.entries) {
       _drawBox(
         canvas,
-        Rect.fromCenter(center: Offset(cx, childY), width: math.min(82, step - 8), height: 28),
-        palette.seriesAt(i),
-        children[i],
-        weightRatio: (weights[children[i]] ?? 0) / maxW,
+        Rect.fromCenter(center: entry.value, width: 76, height: 28),
+        palette.seriesAt(idx++),
+        entry.key,
+        weightRatio: (weights[entry.key] ?? 0) / maxW,
       );
     }
   }

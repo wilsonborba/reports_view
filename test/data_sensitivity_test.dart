@@ -364,6 +364,20 @@ void main() {
     expect(layers['B'], greaterThan(layers['A']!));
     expect(layers['C'], greaterThan(layers['B']!));
 
+    // Branch + merge DAG: leaf D must sit deeper than both parents B and C.
+    const branchEdges = [
+      DiagramEdge(source: 'Start', target: 'B', group: 'L1', value: 10),
+      DiagramEdge(source: 'Start', target: 'C', group: 'L1', value: 10),
+      DiagramEdge(source: 'B', target: 'Merge', group: 'L2', value: 5),
+      DiagramEdge(source: 'C', target: 'Merge', group: 'L2', value: 5),
+      DiagramEdge(source: 'Merge', target: 'End', group: 'L3', value: 10),
+    ];
+    final bNodes = DiagramCatalogChart.collectNodes(branchEdges);
+    final bLayers = DiagramCatalogChart.computeLayeredOrder(bNodes, branchEdges);
+    expect(bLayers['Merge']!, greaterThan(bLayers['B']!));
+    expect(bLayers['Merge']!, greaterThan(bLayers['C']!));
+    expect(bLayers['End']!, greaterThan(bLayers['Merge']!));
+
     final netPos = DiagramCatalogChart.computeNetworkPositions(nodes, edges);
     expect(netPos.keys, containsAll(['A', 'B', 'C']));
     for (final p in netPos.values) {
