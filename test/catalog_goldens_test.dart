@@ -294,6 +294,13 @@ void main() {
     'contour_2d', 'splom', 'quadrant', 'ternary',
   ];
 
+  const diagramIds = [
+    'sankey', 'alluvial', 'chord', 'arc_diagram', 'flowchart', 'layered_dag',
+    'sequence_diagram', 'state_diagram', 'swimlane', 'tree_org', 'dendrogram',
+    'mind_map', 'network', 'adjacency_matrix', 'er_diagram',
+    'architecture_diagram',
+  ];
+
   for (final id in comparisonIds) {
     testWidgets('golden comparison/$id', (tester) async {
       await _pumpAndGolden(
@@ -365,6 +372,21 @@ void main() {
         dimField: 'item',
         count: 6,
         twoMeasures: true,
+      );
+    });
+  }
+
+  for (final id in diagramIds) {
+    testWidgets('golden diagram/$id', (tester) async {
+      await _pumpAndGolden(
+        tester,
+        group: 'diagram',
+        id: id,
+        dimSlot: 'category',
+        dimType: 'string',
+        dimField: 'item',
+        count: 6,
+        twoMeasures: false,
       );
     });
   }

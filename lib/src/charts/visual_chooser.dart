@@ -6,6 +6,7 @@ import 'bar_charts.dart';
 import 'chart_frame.dart';
 import 'comparison_charts.dart';
 import 'data_table_view.dart';
+import 'diagram_charts.dart';
 import 'donut_chart.dart';
 import 'format.dart';
 import 'kpi_tiles.dart';
@@ -251,6 +252,21 @@ class VisualChooser {
     'map' => Visual.map,
     'table' => Visual.table,
     'sankey' => Visual.sankey,
+    'alluvial' => Visual.alluvial,
+    'chord' => Visual.chord,
+    'arcDiagram' || 'arc_diagram' => Visual.arcDiagram,
+    'flowchart' => Visual.flowchart,
+    'layeredDag' || 'layered_dag' => Visual.layeredDag,
+    'sequenceDiagram' || 'sequence_diagram' => Visual.sequenceDiagram,
+    'stateDiagram' || 'state_diagram' => Visual.stateDiagram,
+    'swimlane' => Visual.swimlane,
+    'treeOrg' || 'tree_org' => Visual.treeOrg,
+    'dendrogram' => Visual.dendrogram,
+    'mindMap' || 'mind_map' => Visual.mindMap,
+    'network' => Visual.network,
+    'adjacencyMatrix' || 'adjacency_matrix' => Visual.adjacencyMatrix,
+    'erDiagram' || 'er_diagram' => Visual.erDiagram,
+    'architectureDiagram' || 'architecture_diagram' => Visual.architectureDiagram,
     _ => Visual.auto,
   };
 
@@ -553,6 +569,28 @@ class VisualChooser {
           yMeasure: ms.length > 1 ? ms[1] : ms.first,
           sizeMeasure: ms.length > 2 ? ms[2] : null,
           measures: ms,
+          height: height ?? (full ? 420 : 260),
+        );
+      case Visual.alluvial:
+      case Visual.chord:
+      case Visual.arcDiagram:
+      case Visual.flowchart:
+      case Visual.layeredDag:
+      case Visual.sequenceDiagram:
+      case Visual.stateDiagram:
+      case Visual.swimlane:
+      case Visual.treeOrg:
+      case Visual.dendrogram:
+      case Visual.mindMap:
+      case Visual.network:
+      case Visual.adjacencyMatrix:
+      case Visual.erDiagram:
+      case Visual.architectureDiagram:
+        return DiagramCatalogChart(
+          page: page,
+          visual: visual,
+          dims: dims,
+          measure: ms.first,
           height: height ?? (full ? 420 : 260),
         );
       case Visual.combo:
