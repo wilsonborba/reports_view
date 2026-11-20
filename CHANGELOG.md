@@ -22,6 +22,7 @@
 - *(goldens)* Load Ubuntu Sans and IBM Plex Sans Thai fonts and regenerate 192 goldens (#55, #56, #57, #58)
 - *(reports_view#68)* Localize ChartFrame labels via context.tr and remove em dash
 - *(reports_view#68)* Apply Localizations.override in golden tests so pt-BR and TH ChartFrame labels render
+- *(relation)* Replace placeholder relation painters with real data-driven renderers, add data-sensitivity tests, and avoid repeating ternary corner label with two measures (#59)
 
 ## 0.1.0
 
