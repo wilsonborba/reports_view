@@ -485,7 +485,11 @@ class _TreemapPainter extends CustomPainter {
         final tp = TextPainter(
           text: TextSpan(
             text: item.$1,
-            style: TextStyle(fontSize: 10, color: textColor),
+            style: const TextStyle(
+              fontSize: 10,
+              fontFamily: ReportPalette.font,
+              fontFamilyFallback: ReportPalette.fontFallback,
+            ).copyWith(color: textColor),
           ),
           textDirection: TextDirection.ltr,
           maxLines: 2,

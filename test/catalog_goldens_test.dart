@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:reports_view/reports_view.dart';
 
@@ -24,30 +27,111 @@ const _palette = ReportPalette(
   ],
 );
 
-DatasetPage _makePage(String id, String dimName, String dimType, int count) {
+Future<ByteData> _font(String file) async => ByteData.sublistView(
+  Uint8List.fromList(await File('test/fonts/$file').readAsBytes()),
+);
+
+/// Loads real Ubuntu Sans, Ubuntu Sans Mono, and IBM Plex Sans Thai fonts
+/// so EN, pt-BR, and TH glyphs render clearly in golden images.
+Future<void> _loadReportsFonts() async {
+  await (FontLoader(ReportPalette.font)
+        ..addFont(_font('UbuntuSans-Variable.ttf'))
+        ..addFont(_font('UbuntuSans-Italic-Variable.ttf')))
+      .load();
+  await (FontLoader(ReportPalette.thaiFont)
+        ..addFont(_font('IBMPlexSansThai-Regular.ttf'))
+        ..addFont(_font('IBMPlexSansThai-SemiBold.ttf')))
+      .load();
+  await (FontLoader(ReportPalette.monoFont)
+        ..addFont(_font('UbuntuSansMono-Variable.ttf')))
+      .load();
+}
+
+String _localizedCategory(String lang, int index) {
+  return switch (lang) {
+    'pt-BR' => [
+      'Ação Principal',
+      'Produção Regional',
+      'Educação Básica',
+      'Saúde Pública',
+      'Gestão Financeira',
+      'Serviços Digitais',
+      'Relatório Anual',
+      'Meta Mensal',
+    ][index % 8],
+    'th' => [
+      'หมวดหมู่หลัก ก',
+      'การประเมินผลรวม',
+      'ข้อมูลเชิงสถิติ',
+      'ประสิทธิภาพระบบ',
+      'สัดส่วนผู้ใช้งาน',
+      'แนวโน้มรายเดือน',
+      'เกณฑ์มาตรฐานกลาง',
+      'สรุปรายงานประจำปี',
+    ][index % 8],
+    _ => [
+      'Core Alpha',
+      'Regional Output',
+      'Primary Service',
+      'System Metrics',
+      'User Cohort',
+      'Monthly Trend',
+      'Baseline Target',
+      'Annual Summary',
+    ][index % 8],
+  };
+}
+
+String _localizedTitle(String lang, String id) {
+  return switch (lang) {
+    'pt-BR' => 'Gráfico $id (pt-BR)',
+    'th' => 'แผนภูมิ $id (ภาษาไทย)',
+    _ => 'Chart $id (EN)',
+  };
+}
+
+DatasetPage _makePage(
+  String id,
+  String dimName,
+  String dimType,
+  int count, {
+  String lang = 'en',
+}) {
   return DatasetPage(
     descriptor: DatasetDescriptor(
       datasetId: id,
-      title: '$id Fixture',
+      title: _localizedTitle(lang, id),
       description: 'Catalog golden fixture',
       equation: null,
       fields: [
         FieldInfo(
           name: dimName,
-          label: 'Category',
+          label: switch (lang) {
+            'pt-BR' => 'Categoria',
+            'th' => 'หมวดหมู่',
+            _ => 'Category',
+          },
           type: dimType,
           role: 'dimension',
         ),
-        const FieldInfo(
+        FieldInfo(
           name: 'v1',
-          label: 'Primary',
+          label: switch (lang) {
+            'pt-BR' => 'Principal',
+            'th' => 'ค่าหลัก',
+            _ => 'Primary',
+          },
           type: 'integer',
           role: 'measure',
           unit: 'pts',
         ),
-        const FieldInfo(
+        FieldInfo(
           name: 'v2',
-          label: 'Secondary',
+          label: switch (lang) {
+            'pt-BR' => 'Secundário',
+            'th' => 'ค่ารอง',
+            _ => 'Secondary',
+          },
           type: 'integer',
           role: 'measure',
           unit: 'pts',
@@ -71,7 +155,7 @@ DatasetPage _makePage(String id, String dimName, String dimType, int count) {
         {
           dimName: dimType == 'date'
               ? '2026-01-${(i % 28 + 1).toString().padLeft(2, '0')}'
-              : 'Item ${i + 1}',
+              : _localizedCategory(lang, i),
           'v1': 20 + (i * 17) % 80,
           'v2': 15 + (i * 11) % 60,
         },
@@ -86,10 +170,10 @@ Future<void> _pumpAndGolden(
   WidgetTester tester, {
   required String group,
   required String id,
-  required DatasetPage page,
   required String dimSlot,
   required String dimType,
   required String dimField,
+  required int count,
   required bool twoMeasures,
 }) async {
   for (final locale in const [
@@ -98,12 +182,13 @@ Future<void> _pumpAndGolden(
     Locale('th'),
   ]) {
     final tag = locale.toLanguageTag();
+    final page = _makePage('${group}_$id', dimField, dimType, count, lang: tag);
     final tpl = VisualTemplate(
       templateId: id,
       version: 1,
       kind: 'chart',
       visual: id,
-      title: '$id ($tag)',
+      title: _localizedTitle(tag, id),
       slots: [
         TemplateSlot(
           slotName: dimSlot,
@@ -133,7 +218,7 @@ Future<void> _pumpAndGolden(
     await tester.pumpWidget(
       MaterialApp(
         locale: locale,
-        theme: ThemeData.light().copyWith(extensions: const [_palette]),
+        theme: _palette.toTheme(Brightness.light),
         home: Scaffold(
           body: RepaintBoundary(
             key: key,
@@ -145,7 +230,7 @@ Future<void> _pumpAndGolden(
                   page: page,
                   template: tpl,
                   binding: binding,
-                  title: '$id ($tag)',
+                  title: _localizedTitle(tag, id),
                 ),
               ),
             ),
@@ -162,6 +247,8 @@ Future<void> _pumpAndGolden(
 }
 
 void main() {
+  setUpAll(_loadReportsFonts);
+
   const comparisonIds = [
     'vertical_bar', 'horizontal_bar', 'ranking_bar', 'grouped_bar',
     'stacked_bar', 'stacked_bar_100', 'diverging_bar', 'floating_bar',
@@ -197,21 +284,16 @@ void main() {
     'ecdf', 'qq_plot', 'population_pyramid', 'raincloud',
   ];
 
-  final cmpPage = _makePage('cmp', 'cat', 'string', 6);
-  final timePage = _makePage('time', 'day', 'date', 8);
-  final pwPage = _makePage('pw', 'part', 'string', 5);
-  final distPage = _makePage('dist', 'cohort', 'string', 8);
-
   for (final id in comparisonIds) {
     testWidgets('golden comparison/$id', (tester) async {
       await _pumpAndGolden(
         tester,
         group: 'comparison',
         id: id,
-        page: cmpPage,
         dimSlot: 'category',
         dimType: 'string',
         dimField: 'cat',
+        count: 6,
         twoMeasures: twoMeasureComparison.contains(id),
       );
     });
@@ -223,10 +305,10 @@ void main() {
         tester,
         group: 'time',
         id: id,
-        page: timePage,
         dimSlot: 'time',
         dimType: 'date',
         dimField: 'day',
+        count: 8,
         twoMeasures: twoMeasureTime.contains(id),
       );
     });
@@ -238,10 +320,10 @@ void main() {
         tester,
         group: 'part_whole',
         id: id,
-        page: pwPage,
         dimSlot: 'part',
         dimType: 'string',
         dimField: 'part',
+        count: 5,
         twoMeasures: false,
       );
     });
@@ -253,10 +335,10 @@ void main() {
         tester,
         group: 'distribution',
         id: id,
-        page: distPage,
         dimSlot: 'category',
         dimType: 'string',
         dimField: 'cohort',
+        count: 8,
         twoMeasures: false,
       );
     });
@@ -270,7 +352,7 @@ void main() {
       final sw = Stopwatch()..start();
       await tester.pumpWidget(
         MaterialApp(
-          theme: ThemeData.light().copyWith(extensions: const [_palette]),
+          theme: _palette.toTheme(Brightness.light),
           home: Scaffold(
             body: SizedBox(
               width: 480,
