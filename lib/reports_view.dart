@@ -9,6 +9,13 @@ export 'src/charts/format.dart';
 export 'src/charts/kpi_tiles.dart';
 export 'src/charts/line_charts.dart';
 export 'src/charts/map_chart.dart';
+export 'src/geo/natural_earth_boundaries.dart'
+    show
+        GeoBoundary,
+        lookupGeoBoundary,
+        naturalEarthAdmin0,
+        naturalEarthAdmin1,
+        naturalEarthAttribution;
 export 'src/charts/motion.dart';
 export 'src/charts/sankey_chart.dart';
 export 'src/charts/sankey_layout.dart';

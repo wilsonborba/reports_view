@@ -25,6 +25,138 @@ const _palette = ReportPalette(
   ],
 );
 
+DatasetPage _indicatorPage(String id) {
+  final (fields, rows) = switch (id) {
+    'kpi' => (
+      const [
+        FieldInfo(
+          name: 'item',
+          label: 'Segment',
+          type: 'string',
+          role: 'dimension',
+        ),
+        FieldInfo(
+          name: 'v1',
+          label: 'Throughput',
+          type: 'integer',
+          role: 'measure',
+          unit: 'ops',
+        ),
+        FieldInfo(
+          name: 'v2',
+          label: 'Availability',
+          type: 'percent',
+          role: 'measure',
+          unit: '%',
+        ),
+      ],
+      const [
+        {'item': 'Core Alpha', 'v1': 12480, 'v2': 94.6},
+        {'item': 'Edge Beta', 'v1': 8420, 'v2': 99.1},
+      ],
+    ),
+    'kpi_sparkline' => (
+      const [
+        FieldInfo(
+          name: 'item',
+          label: 'Day',
+          type: 'string',
+          role: 'dimension',
+        ),
+        FieldInfo(
+          name: 'v1',
+          label: 'Daily Active Users',
+          type: 'integer',
+          role: 'measure',
+          unit: 'users',
+        ),
+      ],
+      const [
+        {'item': 'D1', 'v1': 1120},
+        {'item': 'D2', 'v1': 1185},
+        {'item': 'D3', 'v1': 1210},
+        {'item': 'D4', 'v1': 1265},
+        {'item': 'D5', 'v1': 1340},
+      ],
+    ),
+    'status_scorecard' => (
+      const [
+        FieldInfo(
+          name: 'item',
+          label: 'Metric',
+          type: 'string',
+          role: 'dimension',
+        ),
+        FieldInfo(
+          name: 'v1',
+          label: 'Score',
+          type: 'integer',
+          role: 'measure',
+          unit: 'pts',
+        ),
+        FieldInfo(
+          name: 'v2',
+          label: 'Target',
+          type: 'integer',
+          role: 'measure',
+          unit: 'pts',
+        ),
+      ],
+      const [
+        {'item': 'API Uptime', 'v1': 99, 'v2': 98},
+        {'item': 'Cache Hit', 'v1': 84, 'v2': 80},
+        {'item': 'Error Budget', 'v1': 32, 'v2': 90},
+        {'item': 'Sync SLA', 'v1': 71, 'v2': 75},
+      ],
+    ),
+    _ => (
+      const [
+        FieldInfo(
+          name: 'item',
+          label: 'Topic',
+          type: 'string',
+          role: 'dimension',
+        ),
+        FieldInfo(
+          name: 'v1',
+          label: 'Mentions',
+          type: 'integer',
+          role: 'measure',
+          unit: 'hits',
+        ),
+        FieldInfo(
+          name: 'v2',
+          label: 'Share',
+          type: 'integer',
+          role: 'measure',
+          unit: '%',
+        ),
+      ],
+      const [
+        {'item': 'Machine Learning', 'v1': 95, 'v2': 40},
+        {'item': 'Rust Async', 'v1': 82, 'v2': 32},
+        {'item': 'Flutter Web', 'v1': 68, 'v2': 28},
+        {'item': 'PostgreSQL', 'v1': 54, 'v2': 20},
+      ],
+    ),
+  };
+
+  return DatasetPage(
+    descriptor: DatasetDescriptor(
+      datasetId: 'indicator_$id',
+      title: 'Indicators ($id)',
+      description: 'Items 99 to 104 realistic fixture',
+      equation: null,
+      fields: fields,
+      filters: const [],
+    ),
+    rows: rows,
+    offset: 0,
+    limit: rows.length,
+    totalRows: rows.length,
+  );
+}
+
 void main() {
   const ids = <String>[
     'kpi',
@@ -35,51 +167,18 @@ void main() {
     'word_cloud',
   ];
 
-  final page = DatasetPage(
-    descriptor: DatasetDescriptor(
-      datasetId: 'indicator_ds',
-      title: 'Indicators and Tables Fixture',
-      description: 'Items 99 to 104 fixture',
-      equation: null,
-      fields: const [
-        FieldInfo(name: 'item', label: 'Item', type: 'string', role: 'dimension'),
-        FieldInfo(name: 'v1', label: 'Score', type: 'integer', role: 'measure', unit: 'pts'),
-        FieldInfo(name: 'v2', label: 'Target', type: 'integer', role: 'measure', unit: 'pts'),
-      ],
-      filters: const [],
-      meta: const DatasetMeta(
-        source: 'Test fixture',
-        sourceUrl: 'https://reports.asodya.com',
-        periodStart: '2026-01-01',
-        periodEnd: '2026-01-31',
-        timezone: 'UTC',
-        freshnessMode: 'daily',
-        expectedRefreshMinutes: 60,
-        updatedAt: 1700000000,
-        tier: 'public',
-      ),
-    ),
-    rows: const [
-      {'item': 'Alpha', 'v1': 84, 'v2': 90},
-      {'item': 'Beta', 'v1': 56, 'v2': 70},
-      {'item': 'Gamma', 'v1': 28, 'v2': 45},
-      {'item': 'Delta', 'v1': 92, 'v2': 88},
-    ],
-    offset: 0,
-    limit: 4,
-    totalRows: 4,
-  );
-
   for (final id in ids) {
     testWidgets('$id renders across EN, pt-BR, and TH', (tester) async {
+      final page = _indicatorPage(id);
+      final maxM = id == 'kpi_sparkline' ? 1 : 2;
       final tpl = VisualTemplate(
         templateId: id,
         version: 1,
         kind: 'chart',
         visual: id,
         title: id,
-        slots: const [
-          TemplateSlot(
+        slots: [
+          const TemplateSlot(
             slotName: 'category',
             role: 'dimension',
             minCount: 0,
@@ -90,17 +189,17 @@ void main() {
             slotName: 'value',
             role: 'measure',
             minCount: 1,
-            maxCount: 2,
-            acceptedTypes: ['integer'],
+            maxCount: maxM,
+            acceptedTypes: const ['integer', 'float', 'percent'],
           ),
         ],
       );
       final binding = CardVisualBinding(
         template: id,
         version: 1,
-        mapping: const {
-          'category': ['item'],
-          'value': ['v1', 'v2'],
+        mapping: {
+          'category': const ['item'],
+          'value': maxM == 1 ? const ['v1'] : const ['v1', 'v2'],
         },
       );
       for (final locale in const [
@@ -128,13 +227,101 @@ void main() {
             ),
           ),
         );
-        await tester.pump();
+        await tester.pumpAndSettle();
         expect(tester.takeException(), isNull, reason: '$id ($locale) threw');
       }
     });
   }
 
+  testWidgets(
+    'kpi displays numeric measure values, never category text as tile headline',
+    (tester) async {
+      final page = _indicatorPage('kpi');
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: _palette.toTheme(Brightness.light),
+          home: Scaffold(
+            body: SizedBox(
+              width: 440,
+              height: 260,
+              child: VisualChooser.build(
+                page,
+                const Slot('s', visual: Visual.kpi),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Core Alpha'), findsNothing);
+      expect(find.textContaining('12,480'), findsOneWidget);
+      expect(find.textContaining('94.6%'), findsOneWidget);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: _palette.toTheme(Brightness.light),
+          home: Scaffold(
+            body: SizedBox(
+              width: 440,
+              height: 260,
+              child: KpiTiles(page: page, rowIndex: 1),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.textContaining('8,420'), findsOneWidget);
+      expect(find.textContaining('99.1%'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'kpi_sparkline and status_scorecard display exact latest and row measure values',
+    (tester) async {
+      final sparkPage = _indicatorPage('kpi_sparkline');
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: _palette.toTheme(Brightness.light),
+          home: Scaffold(
+            body: SizedBox(
+              width: 440,
+              height: 260,
+              child: VisualChooser.build(
+                sparkPage,
+                const Slot('s', visual: Visual.kpiSparkline),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.textContaining('1,340'), findsOneWidget);
+
+      final scorePage = _indicatorPage('status_scorecard');
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: _palette.toTheme(Brightness.light),
+          home: Scaffold(
+            body: SizedBox(
+              width: 440,
+              height: 300,
+              child: VisualChooser.build(
+                scorePage,
+                const Slot('s', visual: Visual.statusScorecard),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('API Uptime'), findsOneWidget);
+      expect(find.text('98'), findsOneWidget);
+      expect(find.text('32'), findsOneWidget);
+    },
+  );
+
   test('word_cloud layout places non-overlapping words ordered by weight', () {
+    final page = _indicatorPage('word_cloud');
     final placed = IndicatorTableChart.layoutWords(
       const Size(420, 240),
       page.rows,
@@ -143,7 +330,7 @@ void main() {
       _palette,
     );
     expect(placed.length, 4);
-    expect(placed.first.text, 'Delta');
+    expect(placed.first.text, 'Machine Learning');
     expect(placed.first.fontSize, greaterThan(placed.last.fontSize));
     for (var i = 0; i < placed.length; i++) {
       for (var j = i + 1; j < placed.length; j++) {

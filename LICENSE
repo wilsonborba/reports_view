@@ -19,3 +19,9 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+Third-Party Map Data Notice:
+- Simplified Natural Earth 1:110m admin-0 (countries, 174 regions) and 1:10m
+  admin-1 (Thailand 77 provinces, Brazil 27 states; 104 regions) boundaries are
+  bundled in `lib/src/geo/natural_earth_boundaries.dart` (~165.9 KiB / 169,864 bytes).
+- Source: Natural Earth (https://www.naturalearthdata.com), Public Domain.

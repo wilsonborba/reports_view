@@ -55,43 +55,70 @@ Widget _host(Widget child) {
   return MaterialApp(
     theme: ThemeData.light().copyWith(extensions: const [_testPalette]),
     home: Scaffold(
-      body: Center(
-        child: SizedBox(width: 600, height: 320, child: child),
-      ),
+      body: Center(child: SizedBox(width: 600, height: 320, child: child)),
     ),
   );
 }
 
 void main() {
-  test('ReportsLinkBuilder builds report and card URIs from caller baseUri', () {
-    final builder = ReportsLinkBuilder(Uri.parse('https://reports.example.com/v1'));
-    expect(
-      builder.reportUri(project: 'proj', report: 'rep', lang: 'en').toString(),
-      'https://reports.example.com/v1/projects/proj/reports/rep?lang=en',
-    );
-    expect(
-      builder.cardUri(project: 'proj', report: 'rep', cardId: 'card').toString(),
-      'https://reports.example.com/v1/menu/proj/rep/card',
-    );
-  });
+  test(
+    'ReportsLinkBuilder builds report and card URIs from caller baseUri',
+    () {
+      final builder = ReportsLinkBuilder(
+        Uri.parse('https://reports.example.com/v1'),
+      );
+      expect(
+        builder
+            .reportUri(project: 'proj', report: 'rep', lang: 'en')
+            .toString(),
+        'https://reports.example.com/v1/projects/proj/reports/rep?lang=en',
+      );
+      expect(
+        builder
+            .cardUri(project: 'proj', report: 'rep', cardId: 'card')
+            .toString(),
+        'https://reports.example.com/v1/menu/proj/rep/card',
+      );
+    },
+  );
 
-  testWidgets('VisualChooser renders bar, donut, kpi, and table without layout errors', (tester) async {
-    final page = _samplePage(
-      fields: const [
-        FieldInfo(name: 'category', label: 'Category', type: 'string', role: 'dimension'),
-        FieldInfo(name: 'value', label: 'Value', type: 'integer', role: 'measure'),
-      ],
-      rows: const [
-        {'category': 'Alpha', 'value': 10},
-        {'category': 'Beta', 'value': 25},
-        {'category': 'Gamma', 'value': 15},
-      ],
-    );
+  testWidgets(
+    'VisualChooser renders bar, donut, kpi, and table without layout errors',
+    (tester) async {
+      final page = _samplePage(
+        fields: const [
+          FieldInfo(
+            name: 'category',
+            label: 'Category',
+            type: 'string',
+            role: 'dimension',
+          ),
+          FieldInfo(
+            name: 'value',
+            label: 'Value',
+            type: 'integer',
+            role: 'measure',
+          ),
+        ],
+        rows: const [
+          {'category': 'Alpha', 'value': 10},
+          {'category': 'Beta', 'value': 25},
+          {'category': 'Gamma', 'value': 15},
+        ],
+      );
 
-    for (final visual in [Visual.bar, Visual.donut, Visual.table]) {
-      await tester.pumpWidget(_host(VisualChooser.build(page, Slot('sample', visual: visual))));
-      await tester.pumpAndSettle();
-      expect(tester.takeException(), isNull);
-    }
-  });
+      for (final visual in [
+        Visual.bar,
+        Visual.donut,
+        Visual.kpi,
+        Visual.table,
+      ]) {
+        await tester.pumpWidget(
+          _host(VisualChooser.build(page, Slot('sample', visual: visual))),
+        );
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+      }
+    },
+  );
 }
