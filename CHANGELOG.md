@@ -1,5 +1,15 @@
 # Changelog
 
+## [unreleased]
+
+### 🐛 Bug Fixes
+
+- *(table)* Align header columns with scaled rows
+
+### 🧪 Testing
+
+- Refresh table geometry goldens
+
 ## [0.2.0] - 2026-11-20
 
 ### 🚀 Features
