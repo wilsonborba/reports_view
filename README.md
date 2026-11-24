@@ -24,4 +24,5 @@ VisualChooser.buildTemplate(
 
 ### Limits
 - Card preview limits: `hbar` 10 rows, `table` 8 rows, `map` 8 list items; full view table page size is 50 rows.
+- Geographic boundaries (`lib/src/geo/natural_earth_boundaries.dart`, 169,864 bytes / ~165.9 KiB) bundle simplified Natural Earth 1:110m admin-0 (174 countries) and 1:10m admin-1 (77 Thailand provinces, 27 Brazil states) polygons joined by ISO 3166-1/3166-2 codes. Source: Natural Earth (Public Domain).
 - Published template versions are immutable (`409 Conflict` on overwrite).

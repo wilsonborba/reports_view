@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:reports_view/reports_view.dart';
@@ -35,45 +37,126 @@ void main() {
     'hex_tile_map',
   ];
 
-  final page = DatasetPage(
+  final coordPage = DatasetPage(
     descriptor: DatasetDescriptor(
-      datasetId: 'geo_ds',
-      title: 'Geographic Fixture',
-      description: 'Geographic catalog items 93 to 98 fixture',
+      datasetId: 'geo_coord_ds',
+      title: 'Geographic Coordinate Fixture',
+      description: 'Point geographic catalog fixture',
       equation: null,
       fields: const [
-        FieldInfo(name: 'region', label: 'Region', type: 'string', role: 'dimension'),
-        FieldInfo(name: 'lat', label: 'Lat', type: 'latitude', role: 'dimension'),
-        FieldInfo(name: 'lon', label: 'Lon', type: 'longitude', role: 'dimension'),
-        FieldInfo(name: 'val', label: 'Total', type: 'integer', role: 'measure', unit: 'pts'),
+        FieldInfo(
+          name: 'region',
+          label: 'City',
+          type: 'string',
+          role: 'dimension',
+        ),
+        FieldInfo(
+          name: 'lat',
+          label: 'Lat',
+          type: 'latitude',
+          role: 'dimension',
+        ),
+        FieldInfo(
+          name: 'lon',
+          label: 'Lon',
+          type: 'longitude',
+          role: 'dimension',
+        ),
+        FieldInfo(
+          name: 'val',
+          label: 'Total',
+          type: 'integer',
+          role: 'measure',
+          unit: 'pts',
+        ),
       ],
       filters: const [],
-      meta: const DatasetMeta(
-        source: 'Test fixture',
-        sourceUrl: 'https://reports.asodya.com',
-        periodStart: '2026-01-01',
-        periodEnd: '2026-01-31',
-        timezone: 'UTC',
-        freshnessMode: 'daily',
-        expectedRefreshMinutes: 60,
-        updatedAt: 1700000000,
-        tier: 'public',
-      ),
     ),
     rows: const [
-      {'region': 'BKK', 'lat': 13.75, 'lon': 100.50, 'val': 120},
-      {'region': 'CNX', 'lat': 18.79, 'lon': 98.98, 'val': 65},
-      {'region': 'HKT', 'lat': 7.88, 'lon': 98.39, 'val': 48},
-      {'region': 'SP', 'lat': -23.55, 'lon': -46.63, 'val': 95},
-      {'region': 'RJ', 'lat': -22.91, 'lon': -43.17, 'val': 52},
+      {'region': 'Bangkok', 'lat': 13.75, 'lon': 100.50, 'val': 120},
+      {'region': 'Chiang Mai', 'lat': 18.79, 'lon': 98.98, 'val': 65},
+      {'region': 'Phuket', 'lat': 7.88, 'lon': 98.39, 'val': 48},
+      {'region': 'Sao Paulo', 'lat': -23.55, 'lon': -46.63, 'val': 95},
+      {'region': 'Rio', 'lat': -22.91, 'lon': -43.17, 'val': 52},
     ],
     offset: 0,
     limit: 5,
     totalRows: 5,
   );
 
+  final isoRegionPage = DatasetPage(
+    descriptor: DatasetDescriptor(
+      datasetId: 'geo_iso_ds',
+      title: 'Geographic ISO Boundary Fixture',
+      description: 'Thailand & Brazil ISO region fixture',
+      equation: null,
+      fields: const [
+        FieldInfo(
+          name: 'region',
+          label: 'ISO Code',
+          type: 'string',
+          role: 'dimension',
+        ),
+        FieldInfo(
+          name: 'val',
+          label: 'Total',
+          type: 'integer',
+          role: 'measure',
+          unit: 'pts',
+        ),
+      ],
+      filters: const [],
+    ),
+    rows: const [
+      {'region': 'TH-10', 'val': 120},
+      {'region': 'TH-50', 'val': 75},
+      {'region': 'TH-83', 'val': 62},
+      {'region': 'TH-40', 'val': 54},
+      {'region': 'TH-90', 'val': 48},
+    ],
+    offset: 0,
+    limit: 5,
+    totalRows: 5,
+  );
+
+  final missingGeoPage = DatasetPage(
+    descriptor: DatasetDescriptor(
+      datasetId: 'no_geo_ds',
+      title: 'Missing Geo Fixture',
+      description: 'No lat/lon and no ISO codes',
+      equation: null,
+      fields: const [
+        FieldInfo(
+          name: 'region',
+          label: 'Category',
+          type: 'string',
+          role: 'dimension',
+        ),
+        FieldInfo(
+          name: 'val',
+          label: 'Total',
+          type: 'integer',
+          role: 'measure',
+          unit: 'pts',
+        ),
+      ],
+      filters: const [],
+    ),
+    rows: const [
+      {'region': 'Core Alpha', 'val': 42},
+      {'region': 'Regional Output', 'val': 18},
+    ],
+    offset: 0,
+    limit: 2,
+    totalRows: 2,
+  );
+
   for (final id in geoIds) {
-    testWidgets('$id renders across EN, pt-BR, and TH', (tester) async {
+    testWidgets('$id renders valid geometry across EN, pt-BR, and TH', (
+      tester,
+    ) async {
+      final isRegion = id == 'choropleth' || id == 'hex_tile_map';
+      final page = isRegion ? isoRegionPage : coordPage;
       final tpl = VisualTemplate(
         templateId: id,
         version: 1,
@@ -130,11 +213,105 @@ void main() {
             ),
           ),
         );
-        await tester.pump();
+        await tester.pumpAndSettle();
         expect(tester.takeException(), isNull, reason: '$id ($locale) threw');
       }
     });
   }
+
+  testWidgets(
+    'refuses missing coordinates and missing ISO codes (not offered by chooser, error state in template)',
+    (tester) async {
+      for (final visual in [
+        Visual.bubbleMap,
+        Visual.geoHeatmap,
+        Visual.flowMap,
+        Visual.choropleth,
+        Visual.hexTileMap,
+      ]) {
+        // Chooser refuses to offer geo chart on non-geo data (falls back to table)
+        expect(
+          VisualChooser.resolve(missingGeoPage, Slot('s', visual: visual)),
+          Visual.table,
+        );
+
+        final tpl = VisualTemplate(
+          templateId: visual.name,
+          version: 1,
+          kind: 'chart',
+          visual: visual.name,
+          title: visual.name,
+          slots: const [
+            TemplateSlot(
+              slotName: 'category',
+              role: 'dimension',
+              minCount: 1,
+              maxCount: 1,
+              acceptedTypes: ['string'],
+            ),
+            TemplateSlot(
+              slotName: 'value',
+              role: 'measure',
+              minCount: 1,
+              maxCount: 1,
+              acceptedTypes: ['integer'],
+            ),
+          ],
+        );
+        final binding = CardVisualBinding(
+          template: visual.name,
+          version: 1,
+          mapping: const {
+            'category': ['region'],
+            'value': ['val'],
+          },
+        );
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: _palette.toTheme(Brightness.light),
+            home: Scaffold(
+              body: VisualChooser.buildTemplate(
+                page: missingGeoPage,
+                template: tpl,
+                binding: binding,
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+        expect(
+          find.textContaining('requires'),
+          findsOneWidget,
+          reason:
+              '${visual.name} must refuse data without coordinates or ISO codes',
+        );
+      }
+    },
+  );
+
+  test(
+    'Natural Earth bundled geometry includes admin-0, Thailand & Brazil admin-1, and stays compact',
+    () {
+      expect(naturalEarthAdmin0.length, greaterThanOrEqualTo(170));
+      final thProvinces = naturalEarthAdmin1
+          .where((b) => b.parentCountry == 'TH')
+          .length;
+      final brStates = naturalEarthAdmin1
+          .where((b) => b.parentCountry == 'BR')
+          .length;
+      expect(thProvinces, 77);
+      expect(brStates, 27);
+      expect(lookupGeoBoundary('TH')?.isoAlpha3, 'THA');
+      expect(lookupGeoBoundary('BRA')?.isoCode, 'BR');
+      expect(lookupGeoBoundary('TH-10'), isNotNull);
+      expect(lookupGeoBoundary('BR-SP'), isNotNull);
+      expect(naturalEarthAttribution, contains('Natural Earth'));
+      final sizeBytes = File(
+        'lib/src/geo/natural_earth_boundaries.dart',
+      ).lengthSync();
+      expect(sizeBytes, lessThan(200 * 1024));
+    },
+  );
 
   test('geo size limit caps regions at maxRegions (24)', () {
     final manyRows = [
@@ -142,7 +319,7 @@ void main() {
         {'region': 'R$i', 'lat': 10.0 + i, 'lon': 20.0 + i, 'val': 10 + i},
     ];
     final manyPage = DatasetPage(
-      descriptor: page.descriptor,
+      descriptor: coordPage.descriptor,
       rows: manyRows,
       offset: 0,
       limit: 40,
@@ -150,8 +327,9 @@ void main() {
     );
     final pts = GeoCatalogChart.extractPoints(
       manyPage,
-      page.descriptor.fields.first,
-      page.descriptor.fields.last,
+      Visual.bubbleMap,
+      coordPage.descriptor.fields.first,
+      coordPage.descriptor.fields.last,
     );
     expect(pts.length, GeoCatalogChart.maxRegions);
   });

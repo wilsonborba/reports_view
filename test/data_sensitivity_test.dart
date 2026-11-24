@@ -32,15 +32,54 @@ const _palette = ReportPalette(
 );
 
 DatasetPage _dataset(String id, String dimName, String dimType, bool variantB) {
+  final isCoordGeo =
+      id.startsWith('bubble_map') ||
+      id.startsWith('geo_heatmap') ||
+      id.startsWith('flow_map');
+  final isIsoGeo = id.startsWith('choropleth') || id.startsWith('hex_tile_map');
+  const isoCodes = [
+    'TH-10',
+    'TH-50',
+    'TH-83',
+    'TH-40',
+    'BR-SP',
+    'BR-RJ',
+    'BR-MG',
+    'BR-BA',
+  ];
+  const coords = [
+    (13.75, 100.50),
+    (18.79, 98.98),
+    (7.88, 98.39),
+    (16.43, 102.82),
+    (-23.55, -46.63),
+    (-22.91, -43.17),
+    (-19.92, -43.94),
+    (-12.97, -38.51),
+  ];
+  final isScienceProb = id.startsWith('roc_pr') || id.startsWith('calibration');
+  final isIrt = id.startsWith('irt_') || id.startsWith('item_diff_disc');
   final rows = [
     for (var i = 0; i < 8; i++)
       {
         dimName: dimType == 'date'
             ? '2026-01-${(i + 1).toString().padLeft(2, '0')}'
-            : (dimName == 'group' ? 'G${(i % 2) + 1}' : 'Cat ${i + 1}'),
+            : (isIsoGeo
+                  ? isoCodes[i]
+                  : (dimName == 'group' ? 'G${(i % 2) + 1}' : 'Cat ${i + 1}')),
         if (dimName != 'group') 'group': 'G${(i % 2) + 1}',
-        'v1': variantB ? (10 + i * i * 3) : (10 + i * 10),
-        'v2': variantB ? (40 + (i % 3) * 25 - i * 2) : (85 - i * 8),
+        if (isCoordGeo) 'lat': coords[i].$1,
+        if (isCoordGeo) 'lon': coords[i].$2,
+        'v1': isScienceProb
+            ? (variantB ? (0.95 - i * 0.11) : (0.12 + i * 0.11))
+            : isIrt
+            ? (variantB ? (-1.5 + i * 0.45) : (1.5 - i * 0.4))
+            : (variantB ? (10 + i * i * 3) : (10 + i * 10)),
+        'v2': isScienceProb
+            ? (variantB ? (i < 5 ? 1 : 0) : (i >= 4 ? 1 : 0))
+            : isIrt
+            ? (variantB ? (0.8 + i * 0.2) : (2.2 - i * 0.15))
+            : (variantB ? (40 + (i % 3) * 25 - i * 2) : (85 - i * 8)),
         'v3': variantB ? (15 + (i % 2) * 40 + i * 3) : (60 - (i % 4) * 12),
       },
   ];
@@ -57,6 +96,20 @@ DatasetPage _dataset(String id, String dimName, String dimType, bool variantB) {
           type: dimType,
           role: 'dimension',
         ),
+        if (isCoordGeo)
+          const FieldInfo(
+            name: 'lat',
+            label: 'Lat',
+            type: 'latitude',
+            role: 'dimension',
+          ),
+        if (isCoordGeo)
+          const FieldInfo(
+            name: 'lon',
+            label: 'Lon',
+            type: 'longitude',
+            role: 'dimension',
+          ),
         if (dimName != 'group')
           const FieldInfo(
             name: 'group',
@@ -64,12 +117,12 @@ DatasetPage _dataset(String id, String dimName, String dimType, bool variantB) {
             type: 'string',
             role: 'dimension',
           ),
-        const FieldInfo(
+        FieldInfo(
           name: 'v1',
           label: 'V1',
-          type: 'integer',
+          type: isScienceProb ? 'float' : 'integer',
           role: 'measure',
-          unit: 'pts',
+          unit: isScienceProb ? 'p' : 'pts',
         ),
         const FieldInfo(
           name: 'v2',
@@ -184,48 +237,136 @@ Future<List<int>> _capturePng(
 
 void main() {
   const comparisonIds = [
-    'vertical_bar', 'horizontal_bar', 'ranking_bar', 'grouped_bar',
-    'stacked_bar', 'stacked_bar_100', 'diverging_bar', 'floating_bar',
-    'lollipop', 'dot_plot', 'dumbbell', 'slope', 'bullet', 'utilization_bar',
-    'pictogram', 'radial_bar', 'circular_bar', 'radar',
-    'parallel_coordinates', 'marimekko', 'waterfall', 'pareto',
+    'vertical_bar',
+    'horizontal_bar',
+    'ranking_bar',
+    'grouped_bar',
+    'stacked_bar',
+    'stacked_bar_100',
+    'diverging_bar',
+    'floating_bar',
+    'lollipop',
+    'dot_plot',
+    'dumbbell',
+    'slope',
+    'bullet',
+    'utilization_bar',
+    'pictogram',
+    'radial_bar',
+    'circular_bar',
+    'radar',
+    'parallel_coordinates',
+    'marimekko',
+    'waterfall',
+    'pareto',
     'small_multiples',
   ];
   const twoMeasureComparison = {
-    'grouped_bar', 'stacked_bar', 'stacked_bar_100', 'diverging_bar',
-    'floating_bar', 'dumbbell', 'slope', 'bullet', 'utilization_bar',
-    'parallel_coordinates', 'marimekko',
+    'grouped_bar',
+    'stacked_bar',
+    'stacked_bar_100',
+    'diverging_bar',
+    'floating_bar',
+    'dumbbell',
+    'slope',
+    'bullet',
+    'utilization_bar',
+    'parallel_coordinates',
+    'marimekko',
   };
   const timeIds = [
-    'line', 'step_line', 'area', 'stacked_area', 'stacked_area_100',
-    'streamgraph', 'sparkline', 'bump_chart', 'candlestick', 'range_band',
-    'combo', 'annotated_line', 'timeline', 'gantt', 'calendar_heatmap',
-    'horizon', 'control_chart', 'burndown', 'cycle_plot', 'curve',
+    'line',
+    'step_line',
+    'area',
+    'stacked_area',
+    'stacked_area_100',
+    'streamgraph',
+    'sparkline',
+    'bump_chart',
+    'candlestick',
+    'range_band',
+    'combo',
+    'annotated_line',
+    'timeline',
+    'gantt',
+    'calendar_heatmap',
+    'horizon',
+    'control_chart',
+    'burndown',
+    'cycle_plot',
+    'curve',
   ];
   const twoMeasureTime = {
-    'stacked_area', 'stacked_area_100', 'streamgraph', 'candlestick',
-    'range_band', 'combo', 'gantt',
+    'stacked_area',
+    'stacked_area_100',
+    'streamgraph',
+    'candlestick',
+    'range_band',
+    'combo',
+    'gantt',
   };
   const partWholeIds = [
-    'donut', 'pie', 'gauge', 'meter', 'treemap', 'sunburst', 'icicle',
-    'circle_packing', 'waffle', 'nightingale_rose', 'funnel',
+    'donut',
+    'pie',
+    'gauge',
+    'meter',
+    'treemap',
+    'sunburst',
+    'icicle',
+    'circle_packing',
+    'waffle',
+    'nightingale_rose',
+    'funnel',
   ];
   const distIds = [
-    'histogram', 'box_plot', 'violin', 'density', 'ridgeline', 'strip',
-    'ecdf', 'qq_plot', 'population_pyramid', 'raincloud',
+    'histogram',
+    'box_plot',
+    'violin',
+    'density',
+    'ridgeline',
+    'strip',
+    'ecdf',
+    'qq_plot',
+    'population_pyramid',
+    'raincloud',
   ];
   const relationIds = [
-    'scatter', 'bubble', 'heatmap', 'correlation_matrix', 'hexbin',
-    'contour_2d', 'splom', 'quadrant', 'ternary',
+    'scatter',
+    'bubble',
+    'heatmap',
+    'correlation_matrix',
+    'hexbin',
+    'contour_2d',
+    'splom',
+    'quadrant',
+    'ternary',
   ];
   const diagramIds = [
-    'sankey', 'alluvial', 'chord', 'arc_diagram', 'flowchart', 'layered_dag',
-    'sequence_diagram', 'state_diagram', 'swimlane', 'tree_org', 'dendrogram',
-    'mind_map', 'network', 'adjacency_matrix', 'er_diagram',
+    'sankey',
+    'alluvial',
+    'chord',
+    'arc_diagram',
+    'flowchart',
+    'layered_dag',
+    'sequence_diagram',
+    'state_diagram',
+    'swimlane',
+    'tree_org',
+    'dendrogram',
+    'mind_map',
+    'network',
+    'adjacency_matrix',
+    'er_diagram',
     'architecture_diagram',
   ];
   const setsIds = ['venn', 'euler', 'upset'];
-  const geoIds = ['bubble_map', 'choropleth', 'geo_heatmap', 'flow_map', 'hex_tile_map'];
+  const geoIds = [
+    'bubble_map',
+    'choropleth',
+    'geo_heatmap',
+    'flow_map',
+    'hex_tile_map',
+  ];
   const indicatorIds = [
     'kpi_sparkline',
     'heat_table',
@@ -267,7 +408,8 @@ void main() {
     for (final id in setsIds) (id, 'category', 'string', 'item', 1, 1),
     for (final id in geoIds) (id, 'category', 'string', 'item', 1, 1),
     for (final id in indicatorIds) (id, 'category', 'string', 'item', 1, 1),
-    for (final id in scienceIds) (id, 'category', 'string', 'item', 1, 1),
+    for (final id in scienceIds)
+      (id, 'category', 'string', 'item', 1, id == 'top_k_prob' ? 1 : 2),
   ];
 
   for (final (id, dimSlot, dimType, dimField, dCount, mCount) in specs) {
@@ -304,25 +446,32 @@ void main() {
     });
   }
 
-  test('semantic: correlation_matrix computes exact Pearson r (1.0 and -1.0)', () {
-    final rows = [
-      {'v1': 1.0, 'v2': 2.0, 'v3': -2.0},
-      {'v1': 2.0, 'v2': 4.0, 'v3': -4.0},
-      {'v1': 3.0, 'v2': 6.0, 'v3': -6.0},
-      {'v1': 4.0, 'v2': 8.0, 'v3': -8.0},
-    ];
-    final m = RelationCatalogChart.computeCorrelationMatrix(rows, [
-      'v1',
-      'v2',
-      'v3',
-    ]);
-    expect(m[0][1], closeTo(1.0, 1e-6));
-    expect(m[0][2], closeTo(-1.0, 1e-6));
-  });
+  test(
+    'semantic: correlation_matrix computes exact Pearson r (1.0 and -1.0)',
+    () {
+      final rows = [
+        {'v1': 1.0, 'v2': 2.0, 'v3': -2.0},
+        {'v1': 2.0, 'v2': 4.0, 'v3': -4.0},
+        {'v1': 3.0, 'v2': 6.0, 'v3': -6.0},
+        {'v1': 4.0, 'v2': 8.0, 'v3': -8.0},
+      ];
+      final m = RelationCatalogChart.computeCorrelationMatrix(rows, [
+        'v1',
+        'v2',
+        'v3',
+      ]);
+      expect(m[0][1], closeTo(1.0, 1e-6));
+      expect(m[0][2], closeTo(-1.0, 1e-6));
+    },
+  );
 
   test('semantic: hexbin counts sum to total points', () {
     final pts = [(0.1, 0.1), (0.15, 0.12), (0.8, 0.9), (0.5, 0.5), (0.9, 0.2)];
-    final bins = RelationCatalogChart.computeHexbinCounts(pts, cols: 6, rows: 4);
+    final bins = RelationCatalogChart.computeHexbinCounts(
+      pts,
+      cols: 6,
+      rows: 4,
+    );
     final sum = bins.values.fold<int>(0, (a, b) => a + b);
     expect(sum, pts.length);
   });
@@ -354,9 +503,24 @@ void main() {
   });
 
   test('semantic: ternary with two measures does not repeat corner labels', () {
-    const a = FieldInfo(name: 'v1', label: 'V1', type: 'integer', role: 'measure');
-    const b = FieldInfo(name: 'v2', label: 'V2', type: 'integer', role: 'measure');
-    const c = FieldInfo(name: 'v3', label: 'V3', type: 'integer', role: 'measure');
+    const a = FieldInfo(
+      name: 'v1',
+      label: 'V1',
+      type: 'integer',
+      role: 'measure',
+    );
+    const b = FieldInfo(
+      name: 'v2',
+      label: 'V2',
+      type: 'integer',
+      role: 'measure',
+    );
+    const c = FieldInfo(
+      name: 'v3',
+      label: 'V3',
+      type: 'integer',
+      role: 'measure',
+    );
     final two = RelationCatalogChart.ternaryCornerLabels(a, b, null);
     expect(two.toSet().length, 3);
     expect(two, ['V1', 'V2', 'Other']);
@@ -367,47 +531,53 @@ void main() {
     expect(three, ['V1', 'V2', 'V3']);
   });
 
-  test('semantic: diagram adjacency matrix, layered DAG, and network positions', () {
-    const edges = [
-      DiagramEdge(source: 'A', target: 'B', group: 'G1', value: 10),
-      DiagramEdge(source: 'B', target: 'C', group: 'G1', value: 5),
-      DiagramEdge(source: 'A', target: 'C', group: 'G2', value: 3),
-    ];
-    final nodes = DiagramCatalogChart.collectNodes(edges);
-    expect(nodes, ['A', 'B', 'C']);
+  test(
+    'semantic: diagram adjacency matrix, layered DAG, and network positions',
+    () {
+      const edges = [
+        DiagramEdge(source: 'A', target: 'B', group: 'G1', value: 10),
+        DiagramEdge(source: 'B', target: 'C', group: 'G1', value: 5),
+        DiagramEdge(source: 'A', target: 'C', group: 'G2', value: 3),
+      ];
+      final nodes = DiagramCatalogChart.collectNodes(edges);
+      expect(nodes, ['A', 'B', 'C']);
 
-    final mat = DiagramCatalogChart.computeAdjacencyMatrix(nodes, edges);
-    expect(mat[0][1], 10);
-    expect(mat[1][2], 5);
-    expect(mat[0][2], 3);
-    expect(mat[2][0], 0);
+      final mat = DiagramCatalogChart.computeAdjacencyMatrix(nodes, edges);
+      expect(mat[0][1], 10);
+      expect(mat[1][2], 5);
+      expect(mat[0][2], 3);
+      expect(mat[2][0], 0);
 
-    final layers = DiagramCatalogChart.computeLayeredOrder(nodes, edges);
-    expect(layers['A'], 0);
-    expect(layers['B'], greaterThan(layers['A']!));
-    expect(layers['C'], greaterThan(layers['B']!));
+      final layers = DiagramCatalogChart.computeLayeredOrder(nodes, edges);
+      expect(layers['A'], 0);
+      expect(layers['B'], greaterThan(layers['A']!));
+      expect(layers['C'], greaterThan(layers['B']!));
 
-    // Branch + merge DAG: leaf D must sit deeper than both parents B and C.
-    const branchEdges = [
-      DiagramEdge(source: 'Start', target: 'B', group: 'L1', value: 10),
-      DiagramEdge(source: 'Start', target: 'C', group: 'L1', value: 10),
-      DiagramEdge(source: 'B', target: 'Merge', group: 'L2', value: 5),
-      DiagramEdge(source: 'C', target: 'Merge', group: 'L2', value: 5),
-      DiagramEdge(source: 'Merge', target: 'End', group: 'L3', value: 10),
-    ];
-    final bNodes = DiagramCatalogChart.collectNodes(branchEdges);
-    final bLayers = DiagramCatalogChart.computeLayeredOrder(bNodes, branchEdges);
-    expect(bLayers['Merge']!, greaterThan(bLayers['B']!));
-    expect(bLayers['Merge']!, greaterThan(bLayers['C']!));
-    expect(bLayers['End']!, greaterThan(bLayers['Merge']!));
+      // Branch + merge DAG: leaf D must sit deeper than both parents B and C.
+      const branchEdges = [
+        DiagramEdge(source: 'Start', target: 'B', group: 'L1', value: 10),
+        DiagramEdge(source: 'Start', target: 'C', group: 'L1', value: 10),
+        DiagramEdge(source: 'B', target: 'Merge', group: 'L2', value: 5),
+        DiagramEdge(source: 'C', target: 'Merge', group: 'L2', value: 5),
+        DiagramEdge(source: 'Merge', target: 'End', group: 'L3', value: 10),
+      ];
+      final bNodes = DiagramCatalogChart.collectNodes(branchEdges);
+      final bLayers = DiagramCatalogChart.computeLayeredOrder(
+        bNodes,
+        branchEdges,
+      );
+      expect(bLayers['Merge']!, greaterThan(bLayers['B']!));
+      expect(bLayers['Merge']!, greaterThan(bLayers['C']!));
+      expect(bLayers['End']!, greaterThan(bLayers['Merge']!));
 
-    final netPos = DiagramCatalogChart.computeNetworkPositions(nodes, edges);
-    expect(netPos.keys, containsAll(['A', 'B', 'C']));
-    for (final p in netPos.values) {
-      expect(p.dx, inInclusiveRange(0.0, 1.0));
-      expect(p.dy, inInclusiveRange(0.0, 1.0));
-    }
-  });
+      final netPos = DiagramCatalogChart.computeNetworkPositions(nodes, edges);
+      expect(netPos.keys, containsAll(['A', 'B', 'C']));
+      for (final p in netPos.values) {
+        expect(p.dx, inInclusiveRange(0.0, 1.0));
+        expect(p.dy, inInclusiveRange(0.0, 1.0));
+      }
+    },
+  );
 
   test('semantic: sets intersection parsing and totals', () {
     final intersections = SetsCatalogChart.extractIntersections(
@@ -416,8 +586,18 @@ void main() {
         {'s': 'A & B', 'v': 5},
         {'s': 'B', 'v': 20},
       ],
-      const FieldInfo(name: 's', label: 'Sets', type: 'string', role: 'dimension'),
-      const FieldInfo(name: 'v', label: 'Count', type: 'integer', role: 'measure'),
+      const FieldInfo(
+        name: 's',
+        label: 'Sets',
+        type: 'string',
+        role: 'dimension',
+      ),
+      const FieldInfo(
+        name: 'v',
+        label: 'Count',
+        type: 'integer',
+        role: 'measure',
+      ),
     );
     final totals = SetsCatalogChart.computeSetTotals(intersections);
     expect(totals['A'], 15);

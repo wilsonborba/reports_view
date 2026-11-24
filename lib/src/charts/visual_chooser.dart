@@ -270,7 +270,8 @@ class VisualChooser {
     'network' => Visual.network,
     'adjacencyMatrix' || 'adjacency_matrix' => Visual.adjacencyMatrix,
     'erDiagram' || 'er_diagram' => Visual.erDiagram,
-    'architectureDiagram' || 'architecture_diagram' => Visual.architectureDiagram,
+    'architectureDiagram' ||
+    'architecture_diagram' => Visual.architectureDiagram,
     'venn' => Visual.venn,
     'euler' => Visual.euler,
     'upset' => Visual.upset,
@@ -351,6 +352,37 @@ class VisualChooser {
       dimensions: mappedDimensions,
       measures: mappedMeasures,
     );
+    if (page.rows.isNotEmpty &&
+        (slot.visual == Visual.map ||
+            slot.visual == Visual.bubbleMap ||
+            slot.visual == Visual.choropleth ||
+            slot.visual == Visual.geoHeatmap ||
+            slot.visual == Visual.flowMap ||
+            slot.visual == Visual.hexTileMap)) {
+      final dimField = mappedDimensions.isNotEmpty
+          ? page.descriptor.field(mappedDimensions.first)
+          : dimensions(page.descriptor).firstOrNull;
+      final geoError = GeoCatalogChart.validateGeoData(
+        page,
+        slot.visual,
+        dimField,
+      );
+      if (geoError != null) {
+        return ChartFrame(
+          page: page,
+          mode: mode,
+          state: ChartFrameState.error,
+          errorMessage: geoError,
+          title: title,
+          subtitle: subtitle,
+          snapshotDate: snapshotDate,
+          showAxisTitles: showAxisTitles,
+          onRetry: onRetry,
+          fixedHeight: height,
+          child: const SizedBox.shrink(),
+        );
+      }
+    }
     final frameState = page.rows.isEmpty
         ? ChartFrameState.empty
         : ChartFrameState.ready;
@@ -403,6 +435,14 @@ class VisualChooser {
     final fits = switch (visual) {
       Visual.kpi || Visual.table || Visual.auto => true,
       Visual.map => hasGeo(d) && dims.isNotEmpty && ms.isNotEmpty,
+      Visual.bubbleMap ||
+      Visual.geoHeatmap ||
+      Visual.flowMap ||
+      Visual.choropleth ||
+      Visual.hexTileMap =>
+        ms.isNotEmpty &&
+            GeoCatalogChart.validateGeoData(page, visual, dims.firstOrNull) ==
+                null,
       Visual.stackedBar => dims.length >= 2 && ms.isNotEmpty,
       Visual.curve => d.fields.isNotEmpty && ms.isNotEmpty,
       Visual.combo => dims.isNotEmpty && ms.length >= 2,
@@ -426,7 +466,10 @@ class VisualChooser {
     final ms = slotMeasures(d, slot);
     switch (visual) {
       case Visual.kpi:
-        return KpiTiles(page: page);
+        return KpiTiles(
+          page: page,
+          measures: slot.measures.isNotEmpty ? ms : null,
+        );
       case Visual.line:
         if (full && ms.length > ReportPalette.slots) {
           return SmallMultiples(
