@@ -28,6 +28,28 @@ const _palette = ReportPalette(
   ],
 );
 
+const _darkPalette = ReportPalette(
+  canvas: Color(0xFF121212),
+  surface: Color(0xFF1E1E1E),
+  surfaceAlt: Color(0xFF2C2C2C),
+  border: Color(0xFF444444),
+  textPrimary: Color(0xFFF4F4F4),
+  textMuted: Color(0xFFBDBDBD),
+  accent: Color(0xFF78A9FF),
+  onAccent: Color(0xFF121212),
+  positive: Color(0xFF42BE65),
+  warning: Color(0xFFF1C21B),
+  negative: Color(0xFFFF8389),
+  info: Color(0xFF78A9FF),
+  caution: Color(0xFFFF832B),
+  series: [
+    Color(0xFF78A9FF),
+    Color(0xFFBE95FF),
+    Color(0xFF08BDBA),
+    Color(0xFFFF7EB6),
+  ],
+);
+
 void main() {
   const geoIds = <String>[
     'map',
@@ -412,6 +434,56 @@ void main() {
         closeTo(0.0, 1e-6),
       );
       expect((leftMargin - rightMargin).abs(), lessThan(40.0));
+    },
+  );
+
+  test(
+    'C12: map label colors meet >= 4.5:1 contrast on light and dark backing and collision layout prevents overlap',
+    () {
+      for (final p in const [_palette, _darkPalette]) {
+        final colors = GeoCatalogChart.labelColorsFor(p);
+        expect(
+          ChartParts.contrastRatio(colors.text, colors.backing),
+          greaterThanOrEqualTo(4.5),
+        );
+      }
+
+      const bounds = Rect.fromLTWH(0, 0, 220, 140);
+      final placed = GeoCatalogChart.layoutNonOverlappingLabels(const [
+        (
+          text: 'Bangkok Metropolis',
+          anchor: Offset(100, 70),
+          priority: 120,
+          maxWidth: 92,
+          fontSize: 8.0,
+        ),
+        (
+          text: 'Samut Prakan',
+          anchor: Offset(102, 72),
+          priority: 65,
+          maxWidth: 92,
+          fontSize: 8.0,
+        ),
+        (
+          text: 'Nonthaburi',
+          anchor: Offset(99, 69),
+          priority: 50,
+          maxWidth: 92,
+          fontSize: 8.0,
+        ),
+      ], bounds);
+      expect(placed, isNotEmpty);
+      expect(placed.first.text, 'Bangkok Metropolis');
+      for (var i = 0; i < placed.length; i++) {
+        expect(bounds.inflate(0.5).contains(placed[i].rect.topLeft), isTrue);
+        expect(
+          bounds.inflate(0.5).contains(placed[i].rect.bottomRight),
+          isTrue,
+        );
+        for (var j = i + 1; j < placed.length; j++) {
+          expect(placed[i].rect.overlaps(placed[j].rect), isFalse);
+        }
+      }
     },
   );
 }

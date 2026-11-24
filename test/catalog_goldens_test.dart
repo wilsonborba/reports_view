@@ -27,6 +27,28 @@ const _palette = ReportPalette(
   ],
 );
 
+const _darkPalette = ReportPalette(
+  canvas: Color(0xFF121212),
+  surface: Color(0xFF1E1E1E),
+  surfaceAlt: Color(0xFF2C2C2C),
+  border: Color(0xFF444444),
+  textPrimary: Color(0xFFF4F4F4),
+  textMuted: Color(0xFFBDBDBD),
+  accent: Color(0xFF78A9FF),
+  onAccent: Color(0xFF121212),
+  positive: Color(0xFF42BE65),
+  warning: Color(0xFFF1C21B),
+  negative: Color(0xFFFF8389),
+  info: Color(0xFF78A9FF),
+  caution: Color(0xFFFF832B),
+  series: [
+    Color(0xFF78A9FF),
+    Color(0xFFBE95FF),
+    Color(0xFF08BDBA),
+    Color(0xFFFF7EB6),
+  ],
+);
+
 Future<ByteData> _font(String file) async => ByteData.sublistView(
   Uint8List.fromList(await File('test/fonts/$file').readAsBytes()),
 );
@@ -1352,6 +1374,79 @@ void main() {
         dimField: 'item',
         count: 6,
         twoMeasures: false,
+      );
+    });
+  }
+
+  for (final (name, pal, brightness) in [
+    ('choropleth_narrow_light_en', _palette, Brightness.light),
+    ('choropleth_narrow_dark_en', _darkPalette, Brightness.dark),
+  ]) {
+    testWidgets('golden geo/$name', (tester) async {
+      tester.view.devicePixelRatio = 1.0;
+      tester.view.physicalSize = const Size(420, 420);
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final page = _makeGeoPage('choropleth', dimField: 'item', lang: 'en');
+      const tpl = VisualTemplate(
+        templateId: 'choropleth',
+        version: 1,
+        kind: 'chart',
+        visual: 'choropleth',
+        title: 'Choropleth Narrow Contrast',
+        slots: [
+          TemplateSlot(
+            slotName: 'category',
+            role: 'dimension',
+            minCount: 1,
+            maxCount: 1,
+            acceptedTypes: ['string'],
+          ),
+          TemplateSlot(
+            slotName: 'value',
+            role: 'measure',
+            minCount: 1,
+            maxCount: 1,
+            acceptedTypes: ['integer'],
+          ),
+        ],
+      );
+      const binding = CardVisualBinding(
+        template: 'choropleth',
+        version: 1,
+        mapping: {
+          'category': ['item'],
+          'value': ['v1'],
+        },
+      );
+      final key = UniqueKey();
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: pal.toTheme(brightness),
+          home: Scaffold(
+            backgroundColor: pal.canvas,
+            body: RepaintBoundary(
+              key: key,
+              child: SizedBox(
+                width: 360,
+                height: 360,
+                child: SingleChildScrollView(
+                  child: VisualChooser.buildTemplate(
+                    page: page,
+                    template: tpl,
+                    binding: binding,
+                    title: _localizedTitle('en', 'choropleth'),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await expectLater(
+        find.byKey(key),
+        matchesGoldenFile('goldens/geo/$name.png'),
       );
     });
   }

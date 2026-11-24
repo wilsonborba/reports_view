@@ -80,6 +80,130 @@ class GeoCatalogChart extends StatelessWidget {
   /// Maximum regions/tiles rendered before capping to preserve legibility.
   static const int maxRegions = 24;
 
+  /// Picks opaque label badge fill and text ink meeting C12 >= 4.5:1 contrast
+  /// on the final backing surface in both light and dark palettes.
+  static ({Color text, Color backing, Color border}) labelColorsFor(
+    ReportPalette palette,
+  ) {
+    final backing = palette.surface;
+    final candidates = <Color>[
+      palette.textPrimary,
+      palette.onAccent,
+      const Color(0xFF000000),
+      const Color(0xFFFFFFFF),
+    ];
+    var bestText = palette.textPrimary;
+    var bestRatio = 0.0;
+    for (final c in candidates) {
+      final ratio = ChartParts.contrastRatio(c, backing);
+      if (ratio > bestRatio) {
+        bestRatio = ratio;
+        bestText = c;
+      }
+      if (ratio >= 4.5 && c == palette.textPrimary) {
+        return (text: c, backing: backing, border: palette.border);
+      }
+    }
+    return (text: bestText, backing: backing, border: palette.border);
+  }
+
+  /// Lays out map labels in descending priority order with collision handling
+  /// so labels never stack over each other or clip outside [bounds].
+  static List<
+    ({
+      String text,
+      Rect rect,
+      Offset textOrigin,
+      double fontSize,
+      double maxWidth,
+    })
+  >
+  layoutNonOverlappingLabels(
+    List<
+      ({
+        String text,
+        Offset anchor,
+        double priority,
+        double maxWidth,
+        double fontSize,
+      })
+    >
+    candidates,
+    Rect bounds,
+  ) {
+    final sorted = [...candidates]
+      ..sort((a, b) => b.priority.compareTo(a.priority));
+    final placed =
+        <
+          ({
+            String text,
+            Rect rect,
+            Offset textOrigin,
+            double fontSize,
+            double maxWidth,
+          })
+        >[];
+    const hPad = 4.0;
+    const vPad = 1.5;
+
+    for (final c in sorted) {
+      if (c.text.trim().isEmpty) continue;
+      final tp = TextPainter(
+        text: TextSpan(
+          text: c.text,
+          style: TextStyle(
+            fontSize: c.fontSize,
+            fontFamily: ReportPalette.font,
+            fontFamilyFallback: ReportPalette.fontFallback,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+        maxLines: 1,
+        ellipsis: '...',
+      )..layout(maxWidth: c.maxWidth);
+
+      final pillW = tp.width + hPad * 2;
+      final pillH = tp.height + vPad * 2;
+      final stepY = pillH + 2.0;
+      final stepX = pillW * 0.55;
+      final shifts = <Offset>[
+        Offset.zero,
+        Offset(0, -stepY),
+        Offset(0, stepY),
+        Offset(stepX, 0),
+        Offset(-stepX, 0),
+        Offset(-stepX * 0.65, -stepY),
+        Offset(stepX * 0.65, stepY),
+      ];
+
+      for (final shift in shifts) {
+        var left = c.anchor.dx + shift.dx - pillW / 2;
+        var top = c.anchor.dy + shift.dy - pillH / 2;
+        left = left.clamp(
+          bounds.left,
+          math.max(bounds.left, bounds.right - pillW),
+        );
+        top = top.clamp(
+          bounds.top,
+          math.max(bounds.top, bounds.bottom - pillH),
+        );
+        final rect = Rect.fromLTWH(left, top, pillW, pillH);
+        if (placed.any((p) => p.rect.inflate(1.5).overlaps(rect))) {
+          continue;
+        }
+        placed.add((
+          text: c.text,
+          rect: rect,
+          textOrigin: Offset(left + hPad, top + vPad),
+          fontSize: c.fontSize,
+          maxWidth: c.maxWidth,
+        ));
+        break;
+      }
+    }
+    return placed;
+  }
+
   const GeoCatalogChart({
     super.key,
     required this.page,
@@ -438,6 +562,42 @@ class _GeoPainter extends CustomPainter {
     tp.paint(canvas, center ? pos - Offset(tp.width / 2, tp.height / 2) : pos);
   }
 
+  void _paintLabelBadges(
+    Canvas canvas,
+    Rect plot,
+    List<
+      ({
+        String text,
+        Offset anchor,
+        double priority,
+        double maxWidth,
+        double fontSize,
+      })
+    >
+    candidates,
+  ) {
+    final colors = GeoCatalogChart.labelColorsFor(palette);
+    final placed = GeoCatalogChart.layoutNonOverlappingLabels(candidates, plot);
+    final fillPaint = Paint()..color = colors.backing;
+    final borderPaint = Paint()
+      ..color = colors.border
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.75;
+    for (final p in placed) {
+      final rrect = RRect.fromRectAndRadius(p.rect, const Radius.circular(3));
+      canvas.drawRRect(rrect, fillPaint);
+      canvas.drawRRect(rrect, borderPaint);
+      _drawText(
+        canvas,
+        p.text,
+        p.textOrigin,
+        maxWidth: p.maxWidth,
+        fontSize: p.fontSize,
+        color: colors.text,
+      );
+    }
+  }
+
   void _paintBaseMap(Canvas canvas, Rect plot) {
     final landFill = Paint()
       ..color = palette.surfaceAlt.withValues(alpha: 0.72);
@@ -509,6 +669,16 @@ class _GeoPainter extends CustomPainter {
 
   void _paintBubbleMap(Canvas canvas, Rect plot) {
     final maxV = _maxV;
+    final labels =
+        <
+          ({
+            String text,
+            Offset anchor,
+            double priority,
+            double maxWidth,
+            double fontSize,
+          })
+        >[];
     for (var i = 0; i < pts.length; i++) {
       final pos = viewport.project(pts[i].lon, pts[i].lat, plot);
       final r = 5.0 + 13.0 * math.sqrt((pts[i].value / maxV).clamp(0.0, 1.0));
@@ -522,12 +692,29 @@ class _GeoPainter extends CustomPainter {
           ..style = PaintingStyle.stroke
           ..strokeWidth = 1.4,
       );
-      _drawText(canvas, pts[i].label, pos + Offset(0, r + 6), center: true);
+      labels.add((
+        text: pts[i].label,
+        anchor: pos + Offset(0, r + 8),
+        priority: pts[i].value,
+        maxWidth: 86,
+        fontSize: 8.5,
+      ));
     }
+    _paintLabelBadges(canvas, plot, labels);
   }
 
   void _paintChoropleth(Canvas canvas, Rect plot) {
     final maxV = _maxV;
+    final labels =
+        <
+          ({
+            String text,
+            Offset anchor,
+            double priority,
+            double maxWidth,
+            double fontSize,
+          })
+        >[];
     for (var i = 0; i < pts.length; i++) {
       final datum = pts[i];
       final b = datum.boundary;
@@ -558,16 +745,15 @@ class _GeoPainter extends CustomPainter {
         canvas.drawPath(path, border);
       }
       final center = viewport.project(b.centroidLon, b.centroidLat, plot);
-      _drawText(
-        canvas,
-        datum.label,
-        center,
-        maxWidth: 64,
-        fontSize: 8,
-        color: t > 0.55 ? palette.onAccent : palette.textPrimary,
-        center: true,
-      );
+      labels.add((
+        text: datum.label,
+        anchor: center,
+        priority: datum.value,
+        maxWidth: math.min(92.0, plot.width * 0.42),
+        fontSize: 8.0,
+      ));
     }
+    _paintLabelBadges(canvas, plot, labels);
   }
 
   void _paintGeoHeatmap(Canvas canvas, Rect plot) {
@@ -629,15 +815,27 @@ class _GeoPainter extends CustomPainter {
           ..strokeWidth = 1.2 + (pts[i].value / maxV) * 3.0,
       );
     }
+    final labels =
+        <
+          ({
+            String text,
+            Offset anchor,
+            double priority,
+            double maxWidth,
+            double fontSize,
+          })
+        >[];
     for (var i = 0; i < pos.length; i++) {
       canvas.drawCircle(pos[i], 4.2, Paint()..color = palette.seriesAt(i));
-      _drawText(
-        canvas,
-        pts[i].label,
-        pos[i] + const Offset(0, 9),
-        center: true,
-      );
+      labels.add((
+        text: pts[i].label,
+        anchor: pos[i] + const Offset(0, 11),
+        priority: pts[i].value,
+        maxWidth: 86,
+        fontSize: 8.5,
+      ));
     }
+    _paintLabelBadges(canvas, plot, labels);
   }
 
   void _paintHexTileMap(Canvas canvas, Rect plot) {
@@ -645,6 +843,16 @@ class _GeoPainter extends CustomPainter {
     final r =
         (math.min(plot.width, plot.height) / (math.max(6, pts.length) * 1.4))
             .clamp(11.0, 20.0);
+    final labels =
+        <
+          ({
+            String text,
+            Offset anchor,
+            double priority,
+            double maxWidth,
+            double fontSize,
+          })
+        >[];
     for (var i = 0; i < pts.length; i++) {
       final pos = viewport.project(pts[i].lon, pts[i].lat, plot);
       final cx = pos.dx.clamp(plot.left + r, plot.right - r);
@@ -680,16 +888,15 @@ class _GeoPainter extends CustomPainter {
           ..style = PaintingStyle.stroke
           ..strokeWidth = 0.8,
       );
-      _drawText(
-        canvas,
-        pts[i].label,
-        Offset(cx, cy),
-        maxWidth: r * 1.6,
+      labels.add((
+        text: pts[i].label,
+        anchor: Offset(cx, cy),
+        priority: pts[i].value,
+        maxWidth: r * 2.1,
         fontSize: 7.5,
-        color: t > 0.55 ? palette.onAccent : palette.textPrimary,
-        center: true,
-      );
+      ));
     }
+    _paintLabelBadges(canvas, plot, labels);
   }
 
   @override
