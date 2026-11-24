@@ -546,4 +546,195 @@ void main() {
       }
     },
   );
+
+  test(
+    'roc_pr leaves ROC unavailable on single-class and empty inputs while separating valid all-positive PR',
+    () {
+      final empty = ScienceAiChart.computeRocPr(const [], const []);
+      expect(empty.rocAuc, isNull);
+      expect(empty.prAuc, isNull);
+      expect(empty.rocPoints, isEmpty);
+      expect(empty.prPoints, isEmpty);
+      expect(empty.hasRoc, isFalse);
+      expect(empty.hasPr, isFalse);
+
+      final allPos = ScienceAiChart.computeRocPr(
+        const [0.9, 0.2],
+        const [true, true],
+      );
+      expect(allPos.rocAuc, isNull);
+      expect(allPos.rocPoints, isEmpty);
+      expect(allPos.hasRoc, isFalse);
+      expect(allPos.hasPr, isTrue);
+      expect(allPos.prAuc, closeTo(1.0, 1e-9));
+
+      final allNeg = ScienceAiChart.computeRocPr(
+        const [0.9, 0.2],
+        const [false, false],
+      );
+      expect(allNeg.rocAuc, isNull);
+      expect(allNeg.prAuc, isNull);
+      expect(allNeg.rocPoints, isEmpty);
+      expect(allNeg.prPoints, isEmpty);
+      expect(allNeg.hasRoc, isFalse);
+      expect(allNeg.hasPr, isFalse);
+    },
+  );
+
+  test(
+    'C8: null outcomes and missing scores are omitted from paired samples instead of defaulting to zero',
+    () {
+      const dim = FieldInfo(
+        name: 'item',
+        label: 'Sample',
+        type: 'string',
+        role: 'dimension',
+      );
+      const score = FieldInfo(
+        name: 'v1',
+        label: 'Score',
+        type: 'float',
+        role: 'measure',
+        missingMeans: 'no_data',
+      );
+      const outcome = FieldInfo(
+        name: 'v2',
+        label: 'Label',
+        type: 'integer',
+        role: 'measure',
+        missingMeans: 'no_data',
+      );
+
+      final rows = const [
+        {'item': 'S1', 'v1': 0.9, 'v2': 1},
+        // Null outcome on high score must be omitted, NOT treated as false (0).
+        {'item': 'S2_null_outcome', 'v1': 0.95, 'v2': null},
+        // Null score must be omitted, NOT treated as 0.0.
+        {'item': 'S3_null_score', 'v1': null, 'v2': 1},
+        // Real zero score and real zero outcome must stay intact.
+        {'item': 'S4_real_zero', 'v1': 0.0, 'v2': 0},
+      ];
+      final paired = ScienceAiChart.extractPairedBinarySamples(
+        rows,
+        dim,
+        score,
+        outcome,
+      );
+      expect(paired.length, 2);
+      expect(paired[0].label, 'S1');
+      expect(paired[0].value, 0.9);
+      expect(paired[0].outcome, isTrue);
+      expect(paired[1].label, 'S4_real_zero');
+      expect(paired[1].value, 0.0);
+      expect(paired[1].outcome, isFalse);
+
+      final roc = ScienceAiChart.computeRocPr(
+        [for (final s in paired) s.value],
+        [for (final s in paired) s.outcome],
+      );
+      expect(roc.rocAuc, closeTo(1.0, 1e-9));
+
+      // topK distinguishes missing (omitted) from real zero (included with prob 0.0).
+      final topNull = ScienceAiChart.computeTopK(
+        const [
+          {'item': 'A', 'v1': 3.0},
+          {'item': 'Missing', 'v1': null},
+          {'item': 'RealZero', 'v1': 0.0},
+          {'item': 'B', 'v1': 1.0},
+        ],
+        dim,
+        score,
+      );
+      expect(topNull.map((e) => e.label).toList(), ['A', 'B', 'RealZero']);
+      expect(topNull[2].prob, 0.0);
+    },
+  );
+
+  testWidgets(
+    'roc_pr rendered widget shows unavailable state on single-class and missing-data pages without invented AUC',
+    (tester) async {
+      const desc = DatasetDescriptor(
+        datasetId: 'roc_state_ds',
+        title: 'ROC State Fixture',
+        description: '',
+        equation: null,
+        fields: [
+          FieldInfo(
+            name: 'item',
+            label: 'Sample',
+            type: 'string',
+            role: 'dimension',
+          ),
+          FieldInfo(
+            name: 'v1',
+            label: 'Score',
+            type: 'float',
+            role: 'measure',
+            missingMeans: 'no_data',
+          ),
+          FieldInfo(
+            name: 'v2',
+            label: 'Label',
+            type: 'integer',
+            role: 'measure',
+            missingMeans: 'no_data',
+          ),
+        ],
+        filters: [],
+      );
+
+      Future<String?> semanticsFor(List<Map<String, dynamic>> rows) async {
+        final page = DatasetPage(
+          descriptor: desc,
+          rows: rows,
+          offset: 0,
+          limit: rows.length,
+          totalRows: rows.length,
+        );
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: _palette.toTheme(Brightness.light),
+            home: Scaffold(
+              body: SizedBox(
+                width: 400,
+                height: 260,
+                child: ScienceAiChart(
+                  page: page,
+                  visual: Visual.rocPr,
+                  dimension: desc.fields[0],
+                  measures: [desc.fields[1], desc.fields[2]],
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+        final node = tester.getSemantics(find.byType(ScienceAiChart));
+        return node.label;
+      }
+
+      final posLabel = await semanticsFor(const [
+        {'item': 'P1', 'v1': 0.9, 'v2': 1},
+        {'item': 'P2', 'v1': 0.2, 'v2': 1},
+      ]);
+      expect(posLabel, contains('ROC unavailable (single class)'));
+      expect(posLabel, contains('PR AUC 1.00'));
+      expect(posLabel, isNot(contains('ROC AUC')));
+
+      final negLabel = await semanticsFor(const [
+        {'item': 'N1', 'v1': 0.9, 'v2': 0},
+        {'item': 'N2', 'v1': 0.2, 'v2': 0},
+      ]);
+      expect(negLabel, contains('ROC / PR unavailable'));
+      expect(negLabel, isNot(contains('ROC AUC')));
+
+      final nullMaskedLabel = await semanticsFor(const [
+        {'item': 'M1', 'v1': 0.9, 'v2': null},
+        {'item': 'M2', 'v1': 0.4, 'v2': null},
+      ]);
+      expect(nullMaskedLabel, contains('ROC / PR unavailable (0/2)'));
+      expect(nullMaskedLabel, isNot(contains('ROC AUC')));
+    },
+  );
 }

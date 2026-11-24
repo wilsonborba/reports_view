@@ -7,12 +7,14 @@ import '../themes/report_palette.dart';
 import 'chart_parts.dart';
 import 'format.dart';
 
-/// Computed ROC and PR curves with exact AUCs from scores and binary labels.
+/// Computed ROC and PR curves with AUCs from scores and binary labels.
+/// [rocAuc] is null whenever both positive and negative classes are not present;
+/// [prAuc] is null whenever no positive samples exist.
 class RocPrResult {
   final List<Offset> rocPoints;
   final List<Offset> prPoints;
-  final double rocAuc;
-  final double prAuc;
+  final double? rocAuc;
+  final double? prAuc;
 
   const RocPrResult({
     required this.rocPoints,
@@ -20,6 +22,9 @@ class RocPrResult {
     required this.rocAuc,
     required this.prAuc,
   });
+
+  bool get hasRoc => rocAuc != null && rocPoints.length >= 2;
+  bool get hasPr => prAuc != null && prPoints.length >= 2;
 }
 
 /// Computed confusion matrix from sample-level actual vs predicted classes.
@@ -88,7 +93,54 @@ class ScienceAiChart extends StatelessWidget {
     this.height = 240,
   });
 
+  /// Parses a binary outcome cleanly, returning null for missing/invalid data
+  /// (`null` is never treated as `0`/`false`, per C8).
+  static bool? binaryOutcome(dynamic raw, FieldInfo field) {
+    if (raw == null) {
+      return field.missingMeans == 'zero' ? false : null;
+    }
+    if (raw is bool) return raw;
+    final val = measureValue(raw, field);
+    if (val == null || !val.isFinite) return null;
+    return val >= 0.5;
+  }
+
+  /// Extracts paired numeric scores/times and binary outcomes, omitting rows
+  /// with missing values rather than converting `null` to `0.0` (C8).
+  static List<({double value, bool outcome, String label})>
+  extractPairedBinarySamples(
+    List<Map<String, dynamic>> rows,
+    FieldInfo? dimension,
+    FieldInfo primary,
+    FieldInfo? secondary,
+  ) {
+    final samples = <({double value, bool outcome, String label})>[];
+    for (var i = 0; i < rows.length; i++) {
+      final r = rows[i];
+      final val = measureValue(r[primary.name], primary);
+      if (val == null || !val.isFinite) continue;
+      bool? outcome;
+      if (secondary != null) {
+        outcome = binaryOutcome(r[secondary.name], secondary);
+      } else if (r.containsKey('label')) {
+        outcome = binaryOutcome(r['label'], primary);
+      } else if (r.containsKey('actual')) {
+        outcome = binaryOutcome(r['actual'], primary);
+      } else if (r.containsKey('event')) {
+        outcome = binaryOutcome(r['event'], primary);
+      }
+      if (outcome == null) continue;
+      final lbl = dimension != null
+          ? ChartParts.xLabel(r[dimension.name], dimension)
+          : '${i + 1}';
+      samples.add((value: val, outcome: outcome, label: lbl));
+    }
+    return samples;
+  }
+
   /// Normalizes class weights into descending top-k probabilities summing to 1.0.
+  /// Omits missing (`null`) entries rather than fabricating `0.0`, while keeping
+  /// explicit real zero entries (C8).
   static List<({String label, double prob})> computeTopK(
     List<Map<String, dynamic>> rows,
     FieldInfo? dimension,
@@ -97,17 +149,18 @@ class ScienceAiChart extends StatelessWidget {
     final entries = <(String, double)>[];
     for (var i = 0; i < rows.length; i++) {
       final r = rows[i];
+      final raw = measureValue(r[primary.name], primary);
+      if (raw == null || !raw.isFinite) continue;
       final lbl = dimension != null
           ? ChartParts.xLabel(r[dimension.name], dimension)
           : '${i + 1}';
-      final val = (measureValue(r[primary.name], primary) ?? 0.0).abs();
-      entries.add((lbl, val));
+      entries.add((lbl, raw.abs()));
     }
-    final sum = entries
-        .fold<double>(0.0, (a, e) => a + e.$2)
-        .clamp(1e-9, double.infinity);
+    if (entries.isEmpty) return const [];
+    final rawSum = entries.fold<double>(0.0, (a, e) => a + e.$2);
     final out = [
-      for (final (lbl, val) in entries) (label: lbl, prob: val / sum),
+      for (final (lbl, val) in entries)
+        (label: lbl, prob: rawSum > 0.0 ? val / rawSum : 0.0),
     ]..sort((a, b) => b.prob.compareTo(a.prob));
     return out;
   }
@@ -139,33 +192,54 @@ class ScienceAiChart extends StatelessWidget {
     return out;
   }
 
-  /// Computes monotonic ROC `(fpr, tpr)` from `(0,0)` to `(1,1)`, PR `(recall, precision)`,
-  /// and trapezoidal AUCs directly from scores and binary labels.
+  /// Computes monotonic ROC `(fpr, tpr)` from `(0,0)` to `(1,1)` when both classes
+  /// are present, PR `(recall, precision)` when positives exist, and trapezoidal AUCs.
+  /// Leaves ROC/PR empty with `null` AUC when undefined rather than inventing numbers.
   static RocPrResult computeRocPr(List<double> scores, List<bool> labels) {
-    final n = math.min(scores.length, labels.length);
-    if (n == 0) {
-      return const RocPrResult(
-        rocPoints: [Offset(0, 0), Offset(1, 1)],
-        prPoints: [Offset(0, 1), Offset(1, 0)],
-        rocAuc: 0.5,
-        prAuc: 0.0,
-      );
-    }
+    final limit = math.min(scores.length, labels.length);
     final pairs = [
-      for (var i = 0; i < n; i++) (score: scores[i], pos: labels[i]),
+      for (var i = 0; i < limit; i++)
+        if (scores[i].isFinite) (score: scores[i], pos: labels[i]),
     ]..sort((a, b) => b.score.compareTo(a.score));
 
+    final n = pairs.length;
     final totalPos = pairs.where((e) => e.pos).length;
     final totalNeg = n - totalPos;
-    if (totalPos == 0 || totalNeg == 0) {
+    if (n == 0 || totalPos == 0) {
+      return const RocPrResult(
+        rocPoints: [],
+        prPoints: [],
+        rocAuc: null,
+        prAuc: null,
+      );
+    }
+
+    if (totalNeg == 0) {
+      // All positives: PR is valid (precision stays 1.0 across recall [0..1]);
+      // FPR is undefined without negatives, so ROC and rocAuc remain unavailable.
+      final pr = <Offset>[const Offset(0, 1)];
+      var tp = 0;
+      var idx = 0;
+      while (idx < pairs.length) {
+        final threshold = pairs[idx].score;
+        while (idx < pairs.length &&
+            (pairs[idx].score - threshold).abs() < 1e-12) {
+          tp++;
+          idx++;
+        }
+        pr.add(Offset(tp / totalPos, 1.0));
+      }
+      var prAuc = 0.0;
+      for (var i = 1; i < pr.length; i++) {
+        final dx = pr[i].dx - pr[i - 1].dx;
+        final avgP = (pr[i].dy + pr[i - 1].dy) * 0.5;
+        prAuc += dx * avgP;
+      }
       return RocPrResult(
-        rocPoints: const [Offset(0, 0), Offset(1, 1)],
-        prPoints: [
-          Offset(0, totalPos == 0 ? 0.0 : 1.0),
-          Offset(1, totalPos / n),
-        ],
-        rocAuc: totalPos == n ? 1.0 : 0.5,
-        prAuc: totalPos / n,
+        rocPoints: const [],
+        prPoints: pr,
+        rocAuc: null,
+        prAuc: prAuc.clamp(0.0, 1.0),
       );
     }
 
@@ -229,27 +303,32 @@ class ScienceAiChart extends StatelessWidget {
     for (var i = 0; i < rows.length; i++) {
       final r = rows[i];
       if (r.containsKey('actual') && r.containsKey('predicted')) {
+        if (r['actual'] == null || r['predicted'] == null) continue;
         samples.add(('${r['actual']}', '${r['predicted']}'));
       } else if (secondary != null) {
-        final pred = valueText(r[primary.name], primary);
-        final act = valueText(r[secondary.name], secondary);
+        final rawPred = r[primary.name];
+        final rawAct = r[secondary.name];
+        if ((rawPred == null && primary.missingMeans != 'zero') ||
+            (rawAct == null && secondary.missingMeans != 'zero')) {
+          continue;
+        }
+        final pred = valueText(rawPred, primary);
+        final act = valueText(rawAct, secondary);
         samples.add((act, pred));
       } else if (dimension != null) {
+        final rawPred = r[primary.name];
+        if (r[dimension.name] == null ||
+            (rawPred == null && primary.missingMeans != 'zero')) {
+          continue;
+        }
         final act = ChartParts.xLabel(r[dimension.name], dimension);
-        final pred = valueText(r[primary.name], primary);
+        final pred = valueText(rawPred, primary);
         samples.add((act, pred));
       }
     }
 
     if (samples.isEmpty) {
-      return const ConfusionMatrixData(
-        labels: ['0', '1'],
-        counts: [
-          [0, 0],
-          [0, 0],
-        ],
-        total: 0,
-      );
+      return const ConfusionMatrixData(labels: [], counts: [], total: 0);
     }
 
     final labelSet = <String>{
@@ -395,7 +474,32 @@ class ScienceAiChart extends StatelessWidget {
     if (page.rows.isEmpty || measures.isEmpty) return const SizedBox.shrink();
     final primary = measures.first;
     final secondary = measures.length > 1 ? measures[1] : null;
-    final summary = '${visual.name}: ${primary.label} (${page.rows.length})';
+    final subset = page.rows.take(maxItems).toList();
+    String summary;
+    if (visual == Visual.rocPr) {
+      final paired = extractPairedBinarySamples(
+        subset,
+        dimension,
+        primary,
+        secondary,
+      );
+      final res = computeRocPr(
+        [for (final s in paired) s.value],
+        [for (final s in paired) s.outcome],
+      );
+      if (res.hasRoc) {
+        summary =
+            'rocPr: ROC AUC ${res.rocAuc!.toStringAsFixed(2)} | PR AUC ${res.prAuc!.toStringAsFixed(2)} (${paired.length}/${subset.length})';
+      } else if (res.hasPr) {
+        summary =
+            'rocPr: ROC unavailable (single class) | PR AUC ${res.prAuc!.toStringAsFixed(2)} (${paired.length}/${subset.length})';
+      } else {
+        summary =
+            'rocPr: ROC / PR unavailable (${paired.length}/${subset.length})';
+      }
+    } else {
+      summary = '${visual.name}: ${primary.label} (${subset.length})';
+    }
     return Semantics(
       label: summary,
       child: SizedBox(
@@ -405,7 +509,7 @@ class ScienceAiChart extends StatelessWidget {
             size: Size(constraints.maxWidth, height),
             painter: _ScienceAiPainter(
               visual: visual,
-              rows: page.rows.take(maxItems).toList(),
+              rows: subset,
               dimension: dimension,
               primary: primary,
               secondary: secondary,
@@ -462,31 +566,27 @@ class _ScienceAiPainter extends CustomPainter {
     tp.paint(canvas, offset);
   }
 
-  List<double> _values(FieldInfo f) => [
-    for (final r in rows) measureValue(r[f.name], f) ?? 0.0,
-  ];
-
-  List<bool> _labels() {
-    if (secondary != null) {
-      return [
-        for (final r in rows)
-          (measureValue(r[secondary!.name], secondary!) ?? 0.0) >= 0.5,
-      ];
-    }
-    return [
-      for (final r in rows)
-        (measureValue(
-                  r['label'] ?? r['actual'] ?? r['event'] ?? r[primary.name],
-                  primary,
-                ) ??
-                0.0) >=
-            0.5,
-    ];
-  }
+  List<double> _validValues(FieldInfo f) => rows
+      .map((r) => measureValue(r[f.name], f))
+      .whereType<double>()
+      .where((v) => v.isFinite)
+      .toList();
 
   String _label(int i) => dimension != null
       ? ChartParts.xLabel(rows[i][dimension!.name], dimension!)
       : '${i + 1}';
+
+  void _paintUnavailable(Canvas canvas, Size size, String message) {
+    _drawText(
+      canvas,
+      message,
+      Offset(size.width / 2, size.height / 2),
+      maxWidth: math.max(80.0, size.width - 24),
+      fontSize: 10.5,
+      color: palette.textMuted,
+      center: true,
+    );
+  }
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -530,7 +630,10 @@ class _ScienceAiPainter extends CustomPainter {
       dimension,
       primary,
     ).take(6).toList();
-    if (top.isEmpty) return;
+    if (top.isEmpty) {
+      _paintUnavailable(canvas, size, 'No valid probability samples');
+      return;
+    }
     final leftW = math.min(115.0, size.width * 0.34);
     const rightPad = 50.0;
     final barMaxW = math.max(20.0, size.width - leftW - rightPad);
@@ -563,6 +666,16 @@ class _ScienceAiPainter extends CustomPainter {
   }
 
   void _paintCalibration(Canvas canvas, Size size) {
+    final samples = ScienceAiChart.extractPairedBinarySamples(
+      rows,
+      dimension,
+      primary,
+      secondary,
+    );
+    if (samples.isEmpty) {
+      _paintUnavailable(canvas, size, 'Calibration unavailable (missing data)');
+      return;
+    }
     final plot = Rect.fromLTWH(38, 18, size.width - 54, size.height - 42);
     _paintAxes(canvas, plot);
     canvas.drawLine(
@@ -572,7 +685,10 @@ class _ScienceAiPainter extends CustomPainter {
         ..color = palette.textMuted.withValues(alpha: 0.45)
         ..strokeWidth = 1.0,
     );
-    final bins = ScienceAiChart.computeCalibration(_values(primary), _labels());
+    final bins = ScienceAiChart.computeCalibration(
+      [for (final s in samples) s.value],
+      [for (final s in samples) s.outcome],
+    );
     final pts = [
       for (final b in bins)
         Offset(
@@ -621,22 +737,41 @@ class _ScienceAiPainter extends CustomPainter {
   }
 
   void _paintRocPr(Canvas canvas, Size size) {
+    final samples = ScienceAiChart.extractPairedBinarySamples(
+      rows,
+      dimension,
+      primary,
+      secondary,
+    );
+    final res = ScienceAiChart.computeRocPr(
+      [for (final s in samples) s.value],
+      [for (final s in samples) s.outcome],
+    );
+    if (!res.hasRoc && !res.hasPr) {
+      _paintUnavailable(
+        canvas,
+        size,
+        samples.isEmpty
+            ? 'ROC / PR unavailable (missing paired data)'
+            : 'ROC / PR unavailable (single class)',
+      );
+      return;
+    }
     final plot = Rect.fromLTWH(38, 22, size.width - 54, size.height - 46);
     _paintAxes(canvas, plot);
-    canvas.drawLine(
-      plot.bottomLeft,
-      plot.topRight,
-      Paint()
-        ..color = palette.textMuted.withValues(alpha: 0.4)
-        ..strokeWidth = 1.0,
-    );
-    final res = ScienceAiChart.computeRocPr(_values(primary), _labels());
     Offset toPx(Offset norm) => Offset(
       plot.left + norm.dx.clamp(0.0, 1.0) * plot.width,
       plot.bottom - norm.dy.clamp(0.0, 1.0) * plot.height,
     );
 
-    if (res.rocPoints.length >= 2) {
+    if (res.hasRoc) {
+      canvas.drawLine(
+        plot.bottomLeft,
+        plot.topRight,
+        Paint()
+          ..color = palette.textMuted.withValues(alpha: 0.4)
+          ..strokeWidth = 1.0,
+      );
       final rocPath = Path()
         ..moveTo(toPx(res.rocPoints.first).dx, toPx(res.rocPoints.first).dy);
       for (var i = 1; i < res.rocPoints.length; i++) {
@@ -660,7 +795,7 @@ class _ScienceAiPainter extends CustomPainter {
       );
     }
 
-    if (res.prPoints.length >= 2) {
+    if (res.hasPr) {
       final prPath = Path()
         ..moveTo(toPx(res.prPoints.first).dx, toPx(res.prPoints.first).dy);
       for (var i = 1; i < res.prPoints.length; i++) {
@@ -690,9 +825,12 @@ class _ScienceAiPainter extends CustomPainter {
       maxWidth: 28,
       color: palette.textMuted,
     );
+    final headerText = res.hasRoc
+        ? 'ROC AUC ${res.rocAuc!.toStringAsFixed(2)} | PR AUC ${res.prAuc!.toStringAsFixed(2)}'
+        : 'ROC N/A (single class) | PR AUC ${res.prAuc!.toStringAsFixed(2)}';
     _drawText(
       canvas,
-      'ROC AUC ${res.rocAuc.toStringAsFixed(2)} | PR AUC ${res.prAuc.toStringAsFixed(2)}',
+      headerText,
       Offset(plot.left, 4),
       maxWidth: plot.width,
       fontSize: 9.5,
@@ -700,7 +838,7 @@ class _ScienceAiPainter extends CustomPainter {
     );
     _drawText(
       canvas,
-      'FPR / Recall',
+      res.hasRoc ? 'FPR / Recall' : 'Recall',
       Offset(plot.left + plot.width * 0.38, plot.bottom + 6),
       maxWidth: 110,
       fontSize: 9,
@@ -715,6 +853,14 @@ class _ScienceAiPainter extends CustomPainter {
       primary,
       secondary,
     );
+    if (cm.total == 0 || cm.labels.isEmpty) {
+      _paintUnavailable(
+        canvas,
+        size,
+        'Confusion matrix unavailable (missing data)',
+      );
+      return;
+    }
     final n = math.max(1, cm.labels.length);
     final plot = Rect.fromLTWH(52, 22, size.width - 68, size.height - 38);
     final cellW = plot.width / n;
@@ -780,25 +926,35 @@ class _ScienceAiPainter extends CustomPainter {
   }
 
   void _paintLearningCurve(Canvas canvas, Size size) {
+    final seriesList = [primary, ?secondary];
+    final allVals = [for (final f in seriesList) ..._validValues(f)];
+    if (allVals.isEmpty) {
+      _paintUnavailable(canvas, size, 'No valid learning curve samples');
+      return;
+    }
     final plot = Rect.fromLTWH(38, 18, size.width - 54, size.height - 40);
     _paintAxes(canvas, plot);
-    final seriesList = [primary, ?secondary];
-    final allVals = [for (final f in seriesList) ..._values(f)];
     final minV = allVals.fold<double>(double.infinity, math.min);
     final maxV = allVals.fold<double>(-double.infinity, math.max);
     final span = math.max(1e-6, maxV - minV);
 
     for (var s = 0; s < seriesList.length; s++) {
-      final vals = _values(seriesList[s]);
-      if (vals.isEmpty) continue;
+      final f = seriesList[s];
       final path = Path();
-      for (var i = 0; i < vals.length; i++) {
-        final x = vals.length == 1
+      var segmentOpen = false;
+      for (var i = 0; i < rows.length; i++) {
+        final val = measureValue(rows[i][f.name], f);
+        if (val == null || !val.isFinite) {
+          segmentOpen = false;
+          continue;
+        }
+        final x = rows.length == 1
             ? plot.center.dx
-            : plot.left + (i / (vals.length - 1)) * plot.width;
-        final y = plot.bottom - ((vals[i] - minV) / span) * plot.height;
-        if (i == 0) {
+            : plot.left + (i / (rows.length - 1)) * plot.width;
+        final y = plot.bottom - ((val - minV) / span) * plot.height;
+        if (!segmentOpen) {
           path.moveTo(x, y);
+          segmentOpen = true;
         } else {
           path.lineTo(x, y);
         }
@@ -836,13 +992,26 @@ class _ScienceAiPainter extends CustomPainter {
   }
 
   void _paintIrt(Canvas canvas, Size size, {required bool infoCurve}) {
+    final diffs = <double>[];
+    final discs = secondary != null ? <double>[] : null;
+    final lbls = <String>[];
+    for (var i = 0; i < rows.length && diffs.length < 5; i++) {
+      final b = measureValue(rows[i][primary.name], primary);
+      if (b == null || !b.isFinite) continue;
+      if (secondary != null) {
+        final a = measureValue(rows[i][secondary!.name], secondary!);
+        if (a == null || !a.isFinite) continue;
+        discs!.add(a);
+      }
+      diffs.add(b);
+      lbls.add(_label(i));
+    }
+    if (diffs.isEmpty) {
+      _paintUnavailable(canvas, size, 'No valid IRT item parameters');
+      return;
+    }
     final plot = Rect.fromLTWH(38, 18, size.width - 54, size.height - 40);
     _paintAxes(canvas, plot);
-    final diffs = _values(primary).take(5).toList();
-    final discs = secondary != null
-        ? _values(secondary!).take(5).toList()
-        : null;
-    final lbls = [for (var i = 0; i < diffs.length; i++) _label(i)];
     final thetaMin = math.min(-3.0, diffs.reduce(math.min) - 1.5);
     final thetaMax = math.max(3.0, diffs.reduce(math.max) + 1.5);
     final thetaSpan = math.max(1e-6, thetaMax - thetaMin);
@@ -913,9 +1082,20 @@ class _ScienceAiPainter extends CustomPainter {
   }
 
   void _paintWrightMap(Canvas canvas, Size size) {
-    final persons = _values(primary);
-    final items = secondary != null ? _values(secondary!) : _values(primary);
-    final lbls = [for (var i = 0; i < items.length; i++) _label(i)];
+    final persons = _validValues(primary);
+    final items = <double>[];
+    final lbls = <String>[];
+    final itemField = secondary ?? primary;
+    for (var i = 0; i < rows.length; i++) {
+      final b = measureValue(rows[i][itemField.name], itemField);
+      if (b == null || !b.isFinite) continue;
+      items.add(b);
+      lbls.add(_label(i));
+    }
+    if (persons.isEmpty && items.isEmpty) {
+      _paintUnavailable(canvas, size, 'No valid Wright map logits');
+      return;
+    }
     final data = ScienceAiChart.computeWrightMap(persons, items, lbls);
 
     final cx = size.width * 0.48;
@@ -1001,17 +1181,32 @@ class _ScienceAiPainter extends CustomPainter {
   }
 
   void _paintDiffDiscScatter(Canvas canvas, Size size) {
+    final pts = <({double v1, double v2, String label})>[];
+    for (var i = 0; i < rows.length; i++) {
+      final b = measureValue(rows[i][primary.name], primary);
+      if (b == null || !b.isFinite) continue;
+      var a = 1.0;
+      if (secondary != null) {
+        final rawA = measureValue(rows[i][secondary!.name], secondary!);
+        if (rawA == null || !rawA.isFinite) continue;
+        a = rawA;
+      }
+      pts.add((v1: b, v2: a, label: _label(i)));
+    }
+    if (pts.isEmpty) {
+      _paintUnavailable(canvas, size, 'No valid item difficulty pairs');
+      return;
+    }
     final plot = Rect.fromLTWH(38, 18, size.width - 54, size.height - 40);
     _paintAxes(canvas, plot);
-    final v1 = _values(primary);
-    final v2 = secondary != null
-        ? _values(secondary!)
-        : List<double>.filled(v1.length, 1.0);
-    final min1 = math.min(-2.5, v1.reduce(math.min));
-    final max1 = math.max(2.5, v1.reduce(math.max));
+    final min1 = math.min(-2.5, [for (final p in pts) p.v1].reduce(math.min));
+    final max1 = math.max(2.5, [for (final p in pts) p.v1].reduce(math.max));
     final span1 = math.max(1e-6, max1 - min1);
-    final min2 = math.min(0.0, v2.reduce(math.min));
-    final span2 = math.max(1e-6, math.max(2.5, v2.reduce(math.max)) - min2);
+    final min2 = math.min(0.0, [for (final p in pts) p.v2].reduce(math.min));
+    final span2 = math.max(
+      1e-6,
+      math.max(2.5, [for (final p in pts) p.v2].reduce(math.max)) - min2,
+    );
 
     final zeroX = plot.left + ((0.0 - min1) / span1) * (plot.width - 16) + 8;
     canvas.drawLine(
@@ -1025,9 +1220,11 @@ class _ScienceAiPainter extends CustomPainter {
       Paint()..color = palette.border.withValues(alpha: 0.65),
     );
 
-    for (var i = 0; i < rows.length; i++) {
-      final x = plot.left + ((v1[i] - min1) / span1) * (plot.width - 16) + 8;
-      final y = plot.bottom - ((v2[i] - min2) / span2) * (plot.height - 16) - 8;
+    for (var i = 0; i < pts.length; i++) {
+      final x =
+          plot.left + ((pts[i].v1 - min1) / span1) * (plot.width - 16) + 8;
+      final y =
+          plot.bottom - ((pts[i].v2 - min2) / span2) * (plot.height - 16) - 8;
       canvas.drawCircle(
         Offset(x, y),
         4.8,
@@ -1035,7 +1232,7 @@ class _ScienceAiPainter extends CustomPainter {
       );
       _drawText(
         canvas,
-        _label(i),
+        pts[i].label,
         Offset(x + 6, y - 6),
         maxWidth: 68,
         fontSize: 8.5,
@@ -1058,11 +1255,26 @@ class _ScienceAiPainter extends CustomPainter {
   }
 
   void _paintKaplanMeier(Canvas canvas, Size size) {
+    final samples = ScienceAiChart.extractPairedBinarySamples(
+      rows,
+      dimension,
+      primary,
+      secondary,
+    );
+    if (samples.isEmpty) {
+      _paintUnavailable(
+        canvas,
+        size,
+        'Kaplan-Meier unavailable (missing data)',
+      );
+      return;
+    }
     final plot = Rect.fromLTWH(38, 18, size.width - 54, size.height - 40);
     _paintAxes(canvas, plot);
-    final times = _values(primary);
-    final events = _labels();
-    final curve = ScienceAiChart.computeKaplanMeier(times, events);
+    final curve = ScienceAiChart.computeKaplanMeier(
+      [for (final s in samples) s.value],
+      [for (final s in samples) s.outcome],
+    );
     final maxT = curve.map((c) => c.time).fold<double>(1e-6, math.max);
 
     final path = Path();
