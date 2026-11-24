@@ -124,7 +124,7 @@ class _DataTableViewState extends State<DataTableView> {
       ),
     );
 
-    final header = Container(
+    Widget buildHeader(List<double> columnWidths) => Container(
       decoration: BoxDecoration(
         color: p.surfaceAlt,
         border: Border(bottom: BorderSide(color: p.border)),
@@ -134,7 +134,7 @@ class _DataTableViewState extends State<DataTableView> {
           for (var i = 0; i < fields.length; i++)
             cell(
               labelWithUnit(fields[i]),
-              widths[i],
+              columnWidths[i],
               fields[i].isNumeric && !fields[i].isDimension,
               header: true,
               sortIcon: _sortField == fields[i].name
@@ -207,6 +207,9 @@ class _DataTableViewState extends State<DataTableView> {
       builder: (context, c) {
         final width = total < c.maxWidth ? c.maxWidth : total;
         final scale = width / total;
+        final columnWidths = [
+          for (final columnWidth in widths) columnWidth * scale,
+        ];
         return Scrollbar(
           controller: _horizontal,
           thumbVisibility: total > c.maxWidth,
@@ -219,7 +222,7 @@ class _DataTableViewState extends State<DataTableView> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  header,
+                  buildHeader(columnWidths),
                   ConstrainedBox(
                     constraints: BoxConstraints(maxHeight: widget.maxHeight),
                     child: ListView.builder(
@@ -255,7 +258,7 @@ class _DataTableViewState extends State<DataTableView> {
                                     rows[r][fields[i].name],
                                     fields[i],
                                   ),
-                                  widths[i] * scale - (i == 0 ? 2 : 0),
+                                  columnWidths[i] - (i == 0 ? 2 : 0),
                                   fields[i].isNumeric && !fields[i].isDimension,
                                 ),
                             ],
