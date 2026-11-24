@@ -1,4 +1,8 @@
+import 'dart:io';
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:reports_view/reports_view.dart';
 import 'package:reports_view/src/charts/science_ai_charts.dart';
@@ -23,6 +27,58 @@ const _palette = ReportPalette(
     Color(0xFF009D9A),
     Color(0xFFEE5396),
   ],
+);
+
+const _darkPalette = ReportPalette(
+  canvas: Color(0xFF121212),
+  surface: Color(0xFF1E1E1E),
+  surfaceAlt: Color(0xFF2C2C2C),
+  border: Color(0xFF444444),
+  textPrimary: Color(0xFFF4F4F4),
+  textMuted: Color(0xFFBDBDBD),
+  accent: Color(0xFF78A9FF),
+  onAccent: Color(0xFF121212),
+  positive: Color(0xFF42BE65),
+  warning: Color(0xFFF1C21B),
+  negative: Color(0xFFFF8389),
+  info: Color(0xFF78A9FF),
+  caution: Color(0xFFFF832B),
+  series: [
+    Color(0xFF78A9FF),
+    Color(0xFFBE95FF),
+    Color(0xFF08BDBA),
+    Color(0xFFFF7EB6),
+  ],
+);
+
+Widget _sizedHarness(
+  Widget child, {
+  double width = 360,
+  double height = 220,
+  Locale locale = const Locale('en'),
+  ReportPalette palette = _palette,
+  Brightness brightness = Brightness.light,
+  Key? boundaryKey,
+}) => MaterialApp(
+  theme: palette.toTheme(brightness),
+  home: Scaffold(
+    backgroundColor: palette.surface,
+    body: Builder(
+      builder: (context) => Localizations.override(
+        context: context,
+        locale: locale,
+        child: Center(
+          child: RepaintBoundary(
+            key: boundaryKey,
+            child: ColoredBox(
+              color: palette.surface,
+              child: SizedBox(width: width, height: height, child: child),
+            ),
+          ),
+        ),
+      ),
+    ),
+  ),
 );
 
 DatasetPage _makeSciencePage(String id) {
@@ -735,6 +791,319 @@ void main() {
       ]);
       expect(nullMaskedLabel, contains('ROC / PR unavailable (0/2)'));
       expect(nullMaskedLabel, isNot(contains('ROC AUC')));
+    },
+  );
+
+  testWidgets(
+    'localization: EN, PT-BR, and TH semantics and 360px light/dark canvas render localized unavailable and single-class text',
+    (tester) async {
+      const dim = FieldInfo(
+        name: 'item',
+        label: 'Item',
+        type: 'string',
+        role: 'dimension',
+      );
+      const pField = FieldInfo(
+        name: 'v1',
+        label: 'Score',
+        type: 'float',
+        role: 'measure',
+      );
+      const sField = FieldInfo(
+        name: 'v2',
+        label: 'Outcome',
+        type: 'integer',
+        role: 'measure',
+      );
+
+      final singleClassRows = const [
+        {'item': 'P1', 'v1': 0.9, 'v2': 1},
+        {'item': 'P2', 'v1': 0.2, 'v2': 1},
+      ];
+      final missingRows = const [
+        {'item': 'M1', 'v1': null, 'v2': null},
+        {'item': 'M2', 'v1': null, 'v2': null},
+      ];
+
+      const desc = DatasetDescriptor(
+        datasetId: 'loc_state_ds',
+        title: 'Locale State Fixture',
+        description: '',
+        equation: null,
+        fields: [dim, pField, sField],
+        filters: [],
+      );
+
+      DatasetPage makePage(List<Map<String, dynamic>> rows) => DatasetPage(
+        descriptor: desc,
+        rows: rows,
+        offset: 0,
+        limit: rows.length,
+        totalRows: rows.length,
+      );
+
+      Future<String> semanticsFor(
+        Visual visual,
+        List<Map<String, dynamic>> rows,
+        Locale locale,
+      ) async {
+        await tester.pumpWidget(
+          _sizedHarness(
+            ScienceAiChart(
+              visual: visual,
+              page: makePage(rows),
+              dimension: dim,
+              measures: const [pField, sField],
+              height: 180,
+            ),
+            locale: locale,
+          ),
+        );
+        return tester.getSemantics(find.byType(ScienceAiChart)).label;
+      }
+
+      expect(
+        await semanticsFor(Visual.rocPr, singleClassRows, const Locale('en')),
+        contains('ROC unavailable (single class) | PR AUC 1.00'),
+      );
+      expect(
+        await semanticsFor(
+          Visual.rocPr,
+          singleClassRows,
+          const Locale('pt', 'BR'),
+        ),
+        contains('ROC indisponível (classe única) | PR AUC 1.00'),
+      );
+      expect(
+        await semanticsFor(Visual.rocPr, singleClassRows, const Locale('th')),
+        contains('ROC ไม่พร้อมใช้งาน (มีคลาสเดียว) | PR AUC 1.00'),
+      );
+
+      expect(
+        await semanticsFor(Visual.rocPr, missingRows, const Locale('en')),
+        contains('ROC / PR unavailable (0/2)'),
+      );
+      expect(
+        await semanticsFor(Visual.rocPr, missingRows, const Locale('pt', 'BR')),
+        contains('ROC / PR indisponíveis (0/2)'),
+      );
+      expect(
+        await semanticsFor(Visual.rocPr, missingRows, const Locale('th')),
+        contains('ROC / PR ไม่พร้อมใช้งาน (0/2)'),
+      );
+
+      Future<List<int>> renderBytes({
+        required Visual visual,
+        required List<Map<String, dynamic>> rows,
+        required Locale locale,
+        required ReportPalette palette,
+        required Brightness brightness,
+        String? dumpName,
+      }) async {
+        final key = GlobalKey();
+        await tester.pumpWidget(
+          _sizedHarness(
+            ScienceAiChart(
+              visual: visual,
+              page: makePage(rows),
+              dimension: dim,
+              measures: const [pField, sField],
+              height: 160,
+            ),
+            width: 360,
+            height: 160,
+            locale: locale,
+            palette: palette,
+            brightness: brightness,
+            boundaryKey: key,
+          ),
+        );
+        expect(tester.takeException(), isNull);
+        final boundary =
+            key.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+        late final List<int> rgba;
+        await tester.runAsync(() async {
+          final image = await boundary.toImage(pixelRatio: 1.0);
+          final data = await image.toByteData(
+            format: ui.ImageByteFormat.rawRgba,
+          );
+          rgba = data!.buffer.asUint8List().toList();
+          if (dumpName != null) {
+            final png = await image.toByteData(format: ui.ImageByteFormat.png);
+            final dir = Platform.environment['WRITE_REVIEW_PNG_DIR'];
+            if (dir != null && dir.isNotEmpty) {
+              Directory(dir).createSync(recursive: true);
+              File(
+                '$dir/$dumpName.png',
+              ).writeAsBytesSync(png!.buffer.asUint8List());
+            }
+          }
+          image.dispose();
+        });
+        return rgba;
+      }
+
+      // Render 360px light & dark across EN, PT-BR, TH for missing & single-class
+      final enMissing = await renderBytes(
+        visual: Visual.confusionMatrix,
+        rows: missingRows,
+        locale: const Locale('en'),
+        palette: _palette,
+        brightness: Brightness.light,
+        dumpName: 'missing_en_light_360',
+      );
+      final ptMissing = await renderBytes(
+        visual: Visual.confusionMatrix,
+        rows: missingRows,
+        locale: const Locale('pt', 'BR'),
+        palette: _palette,
+        brightness: Brightness.light,
+        dumpName: 'missing_pt_br_light_360',
+      );
+      final thMissing = await renderBytes(
+        visual: Visual.confusionMatrix,
+        rows: missingRows,
+        locale: const Locale('th'),
+        palette: _darkPalette,
+        brightness: Brightness.dark,
+        dumpName: 'missing_th_dark_360',
+      );
+
+      final enSingle = await renderBytes(
+        visual: Visual.rocPr,
+        rows: singleClassRows,
+        locale: const Locale('en'),
+        palette: _palette,
+        brightness: Brightness.light,
+        dumpName: 'roc_single_en_light_360',
+      );
+      final ptSingle = await renderBytes(
+        visual: Visual.rocPr,
+        rows: singleClassRows,
+        locale: const Locale('pt', 'BR'),
+        palette: _darkPalette,
+        brightness: Brightness.dark,
+        dumpName: 'roc_single_pt_br_dark_360',
+      );
+      final thSingle = await renderBytes(
+        visual: Visual.rocPr,
+        rows: singleClassRows,
+        locale: const Locale('th'),
+        palette: _darkPalette,
+        brightness: Brightness.dark,
+        dumpName: 'roc_single_th_dark_360',
+      );
+
+      // Canvas pixels must differ between EN and PT-BR (same palette/size) and TH.
+      expect(enMissing, isNot(equals(ptMissing)));
+      expect(enMissing, isNot(equals(thMissing)));
+      expect(enSingle, isNot(equals(ptSingle)));
+      expect(ptSingle, isNot(equals(thSingle)));
+    },
+  );
+
+  testWidgets(
+    'render: learning_curve omits null middle gap instead of coalescing to 0 or bridging across',
+    (tester) async {
+      const dim = FieldInfo(
+        name: 'epoch',
+        label: 'Epoch',
+        type: 'string',
+        role: 'dimension',
+      );
+      const lossField = FieldInfo(
+        name: 'v1',
+        label: 'Train Loss',
+        type: 'float',
+        role: 'measure',
+        missingMeans: 'no_data',
+      );
+      final gapRows = const [
+        {'epoch': 'E1', 'v1': 0.85},
+        {'epoch': 'E2', 'v1': 0.72},
+        {'epoch': 'E3', 'v1': null},
+        {'epoch': 'E4', 'v1': 0.35},
+        {'epoch': 'E5', 'v1': 0.22},
+      ];
+      final page = DatasetPage(
+        descriptor: const DatasetDescriptor(
+          datasetId: 'lc_gap_ds',
+          title: 'Learning Curve Gap',
+          description: '',
+          equation: null,
+          fields: [dim, lossField],
+          filters: [],
+        ),
+        rows: gapRows,
+        offset: 0,
+        limit: gapRows.length,
+        totalRows: gapRows.length,
+      );
+
+      final key = GlobalKey();
+      await tester.pumpWidget(
+        _sizedHarness(
+          ScienceAiChart(
+            visual: Visual.learningCurve,
+            page: page,
+            dimension: dim,
+            measures: const [lossField],
+            height: 180,
+          ),
+          width: 320,
+          height: 180,
+          boundaryKey: key,
+        ),
+      );
+      expect(tester.takeException(), isNull);
+
+      final boundary =
+          key.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+      late final List<int> rgba;
+      const width = 320;
+      await tester.runAsync(() async {
+        final image = await boundary.toImage(pixelRatio: 1.0);
+        final data = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+        rgba = data!.buffer.asUint8List().toList();
+        final dir = Platform.environment['WRITE_REVIEW_PNG_DIR'];
+        if (dir != null && dir.isNotEmpty) {
+          Directory(dir).createSync(recursive: true);
+          final png = await image.toByteData(format: ui.ImageByteFormat.png);
+          File(
+            '$dir/learning_curve_gap.png',
+          ).writeAsBytesSync(png!.buffer.asUint8List());
+        }
+        image.dispose();
+      });
+
+      // Accent color (#0F62FE) in _paintLearningCurve uses seriesAt(0) == accent.
+      int countAccentInXRange(int xMin, int xMax, int yMin, int yMax) {
+        var count = 0;
+        for (var y = yMin; y <= yMax; y++) {
+          for (var x = xMin; x <= xMax; x++) {
+            final idx = (y * width + x) * 4;
+            final r = rgba[idx];
+            final g = rgba[idx + 1];
+            final b = rgba[idx + 2];
+            // Detect bluish stroke pixels close to #0F62FE and well away from surface #F4F4F4 / border #D0D0D0.
+            if (b > 200 && b - r > 120 && g >= 60 && g <= 150) {
+              count++;
+            }
+          }
+        }
+        return count;
+      }
+
+      // plot = Rect.fromLTWH(38, 18, 320 - 54 = 266, 180 - 40 = 140)
+      // x(i) = 38 + (i / 4) * 266:
+      // E1 = 38, E2 = 104.5, E3 (null gap) = 171.0, E4 = 237.5, E5 = 304.0
+      final e2Pixels = countAccentInXRange(100, 109, 15, 165);
+      final gapBandPixels = countAccentInXRange(112, 230, 15, 165);
+      final e4Pixels = countAccentInXRange(233, 242, 15, 165);
+
+      expect(e2Pixels, greaterThan(5));
+      expect(e4Pixels, greaterThan(5));
+      expect(gapBandPixels, equals(0));
     },
   );
 }
