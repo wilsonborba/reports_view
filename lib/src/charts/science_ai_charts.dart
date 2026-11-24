@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../l10n/chart_strings.dart';
 import '../models/report.dart';
 import '../themes/report_palette.dart';
 import 'chart_parts.dart';
@@ -492,14 +493,15 @@ class ScienceAiChart extends StatelessWidget {
             'rocPr: ROC AUC ${res.rocAuc!.toStringAsFixed(2)} | PR AUC ${res.prAuc!.toStringAsFixed(2)} (${paired.length}/${subset.length})';
       } else if (res.hasPr) {
         summary =
-            'rocPr: ROC unavailable (single class) | PR AUC ${res.prAuc!.toStringAsFixed(2)} (${paired.length}/${subset.length})';
+            'rocPr: ${context.tr('roc_single_class_summary')} | PR AUC ${res.prAuc!.toStringAsFixed(2)} (${paired.length}/${subset.length})';
       } else {
         summary =
-            'rocPr: ROC / PR unavailable (${paired.length}/${subset.length})';
+            'rocPr: ${context.tr('roc_pr_unavailable_summary')} (${paired.length}/${subset.length})';
       }
     } else {
       summary = '${visual.name}: ${primary.label} (${subset.length})';
     }
+    final chartStrings = _ScienceChartStrings.fromContext(context);
     return Semantics(
       label: summary,
       child: SizedBox(
@@ -514,10 +516,63 @@ class ScienceAiChart extends StatelessWidget {
               primary: primary,
               secondary: secondary,
               palette: p,
+              strings: chartStrings,
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+class _ScienceChartStrings {
+  final String Function(String pr) rocSingleClassBanner;
+  final String rocPrMissingData;
+  final String rocPrSingleClass;
+  final String noValidProbabilitySamples;
+  final String calibrationUnavailable;
+  final String confusionMatrixUnavailable;
+  final String noValidLearningCurveSamples;
+  final String noValidIrtItemParameters;
+  final String noValidWrightMapLogits;
+  final String noValidItemDifficultyPairs;
+  final String kaplanMeierUnavailable;
+  final String localeTag;
+
+  const _ScienceChartStrings({
+    required this.rocSingleClassBanner,
+    required this.rocPrMissingData,
+    required this.rocPrSingleClass,
+    required this.noValidProbabilitySamples,
+    required this.calibrationUnavailable,
+    required this.confusionMatrixUnavailable,
+    required this.noValidLearningCurveSamples,
+    required this.noValidIrtItemParameters,
+    required this.noValidWrightMapLogits,
+    required this.noValidItemDifficultyPairs,
+    required this.kaplanMeierUnavailable,
+    required this.localeTag,
+  });
+
+  factory _ScienceChartStrings.fromContext(BuildContext context) {
+    final locale =
+        Localizations.maybeLocaleOf(context)?.toLanguageTag() ?? 'en';
+    return _ScienceChartStrings(
+      rocSingleClassBanner: (pr) =>
+          context.tr('roc_single_class_banner', {'pr': pr}),
+      rocPrMissingData: context.tr('roc_pr_missing_data'),
+      rocPrSingleClass: context.tr('roc_pr_single_class'),
+      noValidProbabilitySamples: context.tr('no_valid_probability_samples'),
+      calibrationUnavailable: context.tr('calibration_unavailable'),
+      confusionMatrixUnavailable: context.tr('confusion_matrix_unavailable'),
+      noValidLearningCurveSamples: context.tr(
+        'no_valid_learning_curve_samples',
+      ),
+      noValidIrtItemParameters: context.tr('no_valid_irt_item_parameters'),
+      noValidWrightMapLogits: context.tr('no_valid_wright_map_logits'),
+      noValidItemDifficultyPairs: context.tr('no_valid_item_difficulty_pairs'),
+      kaplanMeierUnavailable: context.tr('kaplan_meier_unavailable'),
+      localeTag: locale,
     );
   }
 }
@@ -529,6 +584,7 @@ class _ScienceAiPainter extends CustomPainter {
   final FieldInfo primary;
   final FieldInfo? secondary;
   final ReportPalette palette;
+  final _ScienceChartStrings strings;
 
   const _ScienceAiPainter({
     required this.visual,
@@ -537,6 +593,7 @@ class _ScienceAiPainter extends CustomPainter {
     required this.primary,
     required this.secondary,
     required this.palette,
+    required this.strings,
   });
 
   void _drawText(
@@ -547,6 +604,8 @@ class _ScienceAiPainter extends CustomPainter {
     double fontSize = 9.5,
     Color? color,
     bool center = false,
+    int maxLines = 1,
+    TextAlign textAlign = TextAlign.start,
   }) {
     final tp = TextPainter(
       text: TextSpan(
@@ -559,7 +618,8 @@ class _ScienceAiPainter extends CustomPainter {
         ),
       ),
       textDirection: TextDirection.ltr,
-      maxLines: 1,
+      textAlign: textAlign,
+      maxLines: maxLines,
       ellipsis: '...',
     )..layout(maxWidth: maxWidth);
     final offset = center ? pos - Offset(tp.width / 2, tp.height / 2) : pos;
@@ -585,6 +645,8 @@ class _ScienceAiPainter extends CustomPainter {
       fontSize: 10.5,
       color: palette.textMuted,
       center: true,
+      maxLines: 2,
+      textAlign: TextAlign.center,
     );
   }
 
@@ -631,7 +693,7 @@ class _ScienceAiPainter extends CustomPainter {
       primary,
     ).take(6).toList();
     if (top.isEmpty) {
-      _paintUnavailable(canvas, size, 'No valid probability samples');
+      _paintUnavailable(canvas, size, strings.noValidProbabilitySamples);
       return;
     }
     final leftW = math.min(115.0, size.width * 0.34);
@@ -673,7 +735,7 @@ class _ScienceAiPainter extends CustomPainter {
       secondary,
     );
     if (samples.isEmpty) {
-      _paintUnavailable(canvas, size, 'Calibration unavailable (missing data)');
+      _paintUnavailable(canvas, size, strings.calibrationUnavailable);
       return;
     }
     final plot = Rect.fromLTWH(38, 18, size.width - 54, size.height - 42);
@@ -751,9 +813,7 @@ class _ScienceAiPainter extends CustomPainter {
       _paintUnavailable(
         canvas,
         size,
-        samples.isEmpty
-            ? 'ROC / PR unavailable (missing paired data)'
-            : 'ROC / PR unavailable (single class)',
+        samples.isEmpty ? strings.rocPrMissingData : strings.rocPrSingleClass,
       );
       return;
     }
@@ -827,7 +887,7 @@ class _ScienceAiPainter extends CustomPainter {
     );
     final headerText = res.hasRoc
         ? 'ROC AUC ${res.rocAuc!.toStringAsFixed(2)} | PR AUC ${res.prAuc!.toStringAsFixed(2)}'
-        : 'ROC N/A (single class) | PR AUC ${res.prAuc!.toStringAsFixed(2)}';
+        : strings.rocSingleClassBanner(res.prAuc!.toStringAsFixed(2));
     _drawText(
       canvas,
       headerText,
@@ -854,11 +914,7 @@ class _ScienceAiPainter extends CustomPainter {
       secondary,
     );
     if (cm.total == 0 || cm.labels.isEmpty) {
-      _paintUnavailable(
-        canvas,
-        size,
-        'Confusion matrix unavailable (missing data)',
-      );
+      _paintUnavailable(canvas, size, strings.confusionMatrixUnavailable);
       return;
     }
     final n = math.max(1, cm.labels.length);
@@ -929,7 +985,7 @@ class _ScienceAiPainter extends CustomPainter {
     final seriesList = [primary, ?secondary];
     final allVals = [for (final f in seriesList) ..._validValues(f)];
     if (allVals.isEmpty) {
-      _paintUnavailable(canvas, size, 'No valid learning curve samples');
+      _paintUnavailable(canvas, size, strings.noValidLearningCurveSamples);
       return;
     }
     final plot = Rect.fromLTWH(38, 18, size.width - 54, size.height - 40);
@@ -1007,7 +1063,7 @@ class _ScienceAiPainter extends CustomPainter {
       lbls.add(_label(i));
     }
     if (diffs.isEmpty) {
-      _paintUnavailable(canvas, size, 'No valid IRT item parameters');
+      _paintUnavailable(canvas, size, strings.noValidIrtItemParameters);
       return;
     }
     final plot = Rect.fromLTWH(38, 18, size.width - 54, size.height - 40);
@@ -1093,7 +1149,7 @@ class _ScienceAiPainter extends CustomPainter {
       lbls.add(_label(i));
     }
     if (persons.isEmpty && items.isEmpty) {
-      _paintUnavailable(canvas, size, 'No valid Wright map logits');
+      _paintUnavailable(canvas, size, strings.noValidWrightMapLogits);
       return;
     }
     final data = ScienceAiChart.computeWrightMap(persons, items, lbls);
@@ -1194,7 +1250,7 @@ class _ScienceAiPainter extends CustomPainter {
       pts.add((v1: b, v2: a, label: _label(i)));
     }
     if (pts.isEmpty) {
-      _paintUnavailable(canvas, size, 'No valid item difficulty pairs');
+      _paintUnavailable(canvas, size, strings.noValidItemDifficultyPairs);
       return;
     }
     final plot = Rect.fromLTWH(38, 18, size.width - 54, size.height - 40);
@@ -1262,11 +1318,7 @@ class _ScienceAiPainter extends CustomPainter {
       secondary,
     );
     if (samples.isEmpty) {
-      _paintUnavailable(
-        canvas,
-        size,
-        'Kaplan-Meier unavailable (missing data)',
-      );
+      _paintUnavailable(canvas, size, strings.kaplanMeierUnavailable);
       return;
     }
     final plot = Rect.fromLTWH(38, 18, size.width - 54, size.height - 40);
@@ -1331,5 +1383,8 @@ class _ScienceAiPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _ScienceAiPainter old) =>
-      old.visual != visual || old.rows != rows || old.palette != palette;
+      old.visual != visual ||
+      old.rows != rows ||
+      old.palette != palette ||
+      old.strings.localeTag != strings.localeTag;
 }
