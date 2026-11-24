@@ -27,15 +27,16 @@ class GeoPointDatum {
   });
 }
 
-/// Geographic bounding box used to project map polygons and points together.
-class _GeoViewport {
+/// Geographic bounding box used to project map polygons and points together
+/// with equirectangular scaling (`cos(midLat)` correction).
+class GeoViewport {
   final double minLon;
   final double maxLon;
   final double minLat;
   final double maxLat;
   final String? focusCountry;
 
-  const _GeoViewport({
+  const GeoViewport({
     required this.minLon,
     required this.maxLon,
     required this.minLat,
@@ -43,12 +44,25 @@ class _GeoViewport {
     this.focusCountry,
   });
 
-  Offset project(double lon, double lat, Rect plot) {
-    final lonSpan = math.max(1e-4, maxLon - minLon);
-    final latSpan = math.max(1e-4, maxLat - minLat);
-    final x = ((lon - minLon) / lonSpan).clamp(0.0, 1.0);
-    final y = (1.0 - (lat - minLat) / latSpan).clamp(0.0, 1.0);
-    return Offset(plot.left + x * plot.width, plot.top + y * plot.height);
+  /// Projects `(lon, lat)` onto [plot] using one uniform scale across both axes
+  /// with `cos(midLat)` correction, centered within [margin] inside [plot].
+  Offset project(double lon, double lat, Rect plot, {double margin = 6.0}) {
+    final inner = (plot.width > margin * 2 && plot.height > margin * 2)
+        ? plot.deflate(margin)
+        : plot;
+    final midLatRad = ((minLat + maxLat) * 0.5) * math.pi / 180.0;
+    final cosLat = math.cos(midLatRad).clamp(0.15, 1.0);
+    final effWidth = math.max(1e-4, (maxLon - minLon) * cosLat);
+    final effHeight = math.max(1e-4, maxLat - minLat);
+    final scale = math.min(inner.width / effWidth, inner.height / effHeight);
+    final drawnW = effWidth * scale;
+    final drawnH = effHeight * scale;
+    final originX = inner.left + (inner.width - drawnW) * 0.5;
+    final originY = inner.top + (inner.height - drawnH) * 0.5;
+    return Offset(
+      originX + (lon - minLon) * cosLat * scale,
+      originY + (maxLat - lat) * scale,
+    );
   }
 }
 
@@ -162,9 +176,10 @@ class GeoCatalogChart extends StatelessWidget {
 
       if (isRegionVisual(visual)) {
         if (boundary == null) continue;
+        // Keep ISO codes strictly for the boundary join; always display the region name.
         out.add(
           GeoPointDatum(
-            label: lbl,
+            label: boundary.name,
             isoCode: boundary.isoCode,
             lat: boundary.centroidLat,
             lon: boundary.centroidLon,
@@ -183,9 +198,15 @@ class GeoCatalogChart extends StatelessWidget {
             lon > 180) {
           continue;
         }
+        final upper = lbl.toUpperCase();
+        final visibleLabel =
+            (boundary != null &&
+                (upper == boundary.isoCode || upper == boundary.isoAlpha3))
+            ? boundary.name
+            : lbl;
         out.add(
           GeoPointDatum(
-            label: lbl,
+            label: visibleLabel,
             isoCode: boundary?.isoCode,
             lat: lat,
             lon: lon,
@@ -237,7 +258,8 @@ class GeoCatalogChart extends StatelessWidget {
     return mat;
   }
 
-  static _GeoViewport _computeViewport(
+  /// Computes the geographic bounding box enveloping [pts] or their focused parent country.
+  static GeoViewport computeViewport(
     List<GeoPointDatum> pts, {
     bool includeWorldFallback = true,
   }) {
@@ -270,7 +292,7 @@ class GeoCatalogChart extends StatelessWidget {
         }
       }
       if ((maxLon - minLon) > 65 || (maxLat - minLat) > 45) {
-        return const _GeoViewport(
+        return const GeoViewport(
           minLon: -180,
           maxLon: 180,
           minLat: -58,
@@ -279,7 +301,7 @@ class GeoCatalogChart extends StatelessWidget {
       }
       final padLon = math.max(4.0, (maxLon - minLon) * 0.18);
       final padLat = math.max(4.0, (maxLat - minLat) * 0.18);
-      return _GeoViewport(
+      return GeoViewport(
         minLon: math.max(-180, minLon - padLon),
         maxLon: math.min(180, maxLon + padLon),
         minLat: math.max(-58, minLat - padLat),
@@ -313,7 +335,7 @@ class GeoCatalogChart extends StatelessWidget {
     }
     final padLon = math.max(1.2, (maxLon - minLon) * 0.08);
     final padLat = math.max(1.2, (maxLat - minLat) * 0.08);
-    return _GeoViewport(
+    return GeoViewport(
       minLon: minLon - padLon,
       maxLon: maxLon + padLon,
       minLat: minLat - padLat,
@@ -365,7 +387,7 @@ class GeoCatalogChart extends StatelessWidget {
             painter: _GeoPainter(
               visual: visual,
               pts: pts,
-              viewport: _computeViewport(pts),
+              viewport: computeViewport(pts),
               palette: p,
             ),
           ),
@@ -378,7 +400,7 @@ class GeoCatalogChart extends StatelessWidget {
 class _GeoPainter extends CustomPainter {
   final Visual visual;
   final List<GeoPointDatum> pts;
-  final _GeoViewport viewport;
+  final GeoViewport viewport;
   final ReportPalette palette;
 
   const _GeoPainter({

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -76,7 +77,7 @@ void main() {
       {'region': 'Bangkok', 'lat': 13.75, 'lon': 100.50, 'val': 120},
       {'region': 'Chiang Mai', 'lat': 18.79, 'lon': 98.98, 'val': 65},
       {'region': 'Phuket', 'lat': 7.88, 'lon': 98.39, 'val': 48},
-      {'region': 'Sao Paulo', 'lat': -23.55, 'lon': -46.63, 'val': 95},
+      {'region': 'São Paulo', 'lat': -23.55, 'lon': -46.63, 'val': 95},
       {'region': 'Rio', 'lat': -22.91, 'lon': -43.17, 'val': 52},
     ],
     offset: 0,
@@ -333,4 +334,84 @@ void main() {
     );
     expect(pts.length, GeoCatalogChart.maxRegions);
   });
+
+  test(
+    'equirectangular projection preserves Thailand aspect ratio without stretching and shows region names instead of ISO codes',
+    () {
+      final pts = GeoCatalogChart.extractPoints(
+        isoRegionPage,
+        Visual.choropleth,
+        isoRegionPage.descriptor.fields.first,
+        isoRegionPage.descriptor.fields.last,
+      );
+      expect(pts.map((p) => p.isoCode).toList(), [
+        'TH-10',
+        'TH-50',
+        'TH-83',
+        'TH-40',
+        'TH-90',
+      ]);
+      expect(pts.map((p) => p.label).toList(), [
+        'Bangkok Metropolis',
+        'Chiang Mai',
+        'Phuket',
+        'Khon Kaen',
+        'Songkhla',
+      ]);
+      for (final p in pts) {
+        expect(p.label.startsWith('TH-'), isFalse);
+      }
+
+      // Compute raw Natural Earth Thailand polygon extents.
+      var minLon = 180.0;
+      var maxLon = -180.0;
+      var minLat = 90.0;
+      var maxLat = -90.0;
+      for (final b in naturalEarthAdmin1.where(
+        (r) => r.parentCountry == 'TH',
+      )) {
+        for (final ring in b.rings) {
+          for (final pt in ring) {
+            minLon = math.min(minLon, pt.dx);
+            maxLon = math.max(maxLon, pt.dx);
+            minLat = math.min(minLat, pt.dy);
+            maxLat = math.max(maxLat, pt.dy);
+          }
+        }
+      }
+
+      final viewport = GeoCatalogChart.computeViewport(pts);
+      const widePlot = Rect.fromLTWH(0, 0, 420, 220);
+      final topLeft = viewport.project(minLon, maxLat, widePlot);
+      final bottomRight = viewport.project(maxLon, minLat, widePlot);
+      final projWidth = (bottomRight.dx - topLeft.dx).abs();
+      final projHeight = (bottomRight.dy - topLeft.dy).abs();
+
+      final midLat = (viewport.minLat + viewport.maxLat) * 0.5;
+      final expectedAspect =
+          ((maxLon - minLon) * math.cos(midLat * math.pi / 180.0)) /
+          (maxLat - minLat);
+      expect(projWidth / projHeight, closeTo(expectedAspect, 1e-3));
+      expect(projWidth, lessThan(projHeight));
+
+      // Verify centered inside the wide plot box with equal horizontal margins.
+      final leftMargin = topLeft.dx - widePlot.left;
+      final rightMargin = widePlot.right - bottomRight.dx;
+      final vpLeft = viewport.project(
+        viewport.minLon,
+        viewport.maxLat,
+        widePlot,
+      );
+      final vpRight = viewport.project(
+        viewport.maxLon,
+        viewport.minLat,
+        widePlot,
+      );
+      expect(
+        (vpLeft.dx - widePlot.left) - (widePlot.right - vpRight.dx),
+        closeTo(0.0, 1e-6),
+      );
+      expect((leftMargin - rightMargin).abs(), lessThan(40.0));
+    },
+  );
 }

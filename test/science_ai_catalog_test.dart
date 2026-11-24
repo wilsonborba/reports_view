@@ -276,60 +276,119 @@ void main() {
     });
   }
 
-  test('semantic: top_k_prob sorts descending and sums to 1.0', () {
-    final page = _makeSciencePage('top_k_prob');
-    final top = ScienceAiChart.computeTopK(
-      page.rows,
-      page.descriptor.fields[0],
-      page.descriptor.fields[1],
-    );
-    expect(top.first.label, 'Class A');
-    expect(top.first.prob, greaterThan(top.last.prob));
-    final total = top.fold<double>(0.0, (a, b) => a + b.prob);
-    expect(total, closeTo(1.0, 1e-6));
-  });
+  test(
+    'semantic: top_k_prob sorts descending and sums to 1.0 with exact probabilities',
+    () {
+      final page = DatasetPage(
+        descriptor: _makeSciencePage('top_k_prob').descriptor,
+        rows: const [
+          {'item': 'A', 'v1': 2.0, 'v2': 0.0},
+          {'item': 'B', 'v1': 5.0, 'v2': 0.0},
+          {'item': 'C', 'v1': 3.0, 'v2': 0.0},
+        ],
+        offset: 0,
+        limit: 3,
+        totalRows: 3,
+      );
+      final top = ScienceAiChart.computeTopK(
+        page.rows,
+        page.descriptor.fields[0],
+        page.descriptor.fields[1],
+      );
+      expect(top.map((e) => e.label).toList(), ['B', 'C', 'A']);
+      expect(top[0].prob, closeTo(0.5, 1e-9));
+      expect(top[1].prob, closeTo(0.3, 1e-9));
+      expect(top[2].prob, closeTo(0.2, 1e-9));
+      final total = top.fold<double>(0.0, (a, b) => a + b.prob);
+      expect(total, closeTo(1.0, 1e-9));
+    },
+  );
 
   test(
-    'semantic: roc_pr starts at (0,0), is monotonic to (1,1), computes AUC & PR',
+    'semantic: roc_pr computes exact ROC points, PR points, ROC AUC (0.75), and trapezoidal PR AUC',
     () {
       final res = ScienceAiChart.computeRocPr(
         const [0.95, 0.85, 0.72, 0.65, 0.50, 0.30, 0.20, 0.10],
         const [true, true, false, true, false, false, true, false],
       );
-      expect(res.rocPoints.first, const Offset(0, 0));
-      expect(res.rocPoints.last, const Offset(1, 1));
-      for (var i = 1; i < res.rocPoints.length; i++) {
-        expect(
-          res.rocPoints[i].dx,
-          greaterThanOrEqualTo(res.rocPoints[i - 1].dx),
-        );
-        expect(
-          res.rocPoints[i].dy,
-          greaterThanOrEqualTo(res.rocPoints[i - 1].dy),
-        );
+      expect(res.rocPoints.length, 9);
+      const expectedRoc = [
+        Offset(0.0, 0.0),
+        Offset(0.0, 0.25),
+        Offset(0.0, 0.50),
+        Offset(0.25, 0.50),
+        Offset(0.25, 0.75),
+        Offset(0.50, 0.75),
+        Offset(0.75, 0.75),
+        Offset(0.75, 1.0),
+        Offset(1.0, 1.0),
+      ];
+      for (var i = 0; i < expectedRoc.length; i++) {
+        expect(res.rocPoints[i].dx, closeTo(expectedRoc[i].dx, 1e-9));
+        expect(res.rocPoints[i].dy, closeTo(expectedRoc[i].dy, 1e-9));
       }
-      expect(res.rocAuc, greaterThan(0.5));
-      expect(res.prAuc, greaterThan(0.0));
+      final expectedPr = [
+        const Offset(0.0, 1.0),
+        const Offset(0.25, 1.0),
+        const Offset(0.50, 1.0),
+        const Offset(0.50, 2 / 3),
+        const Offset(0.75, 0.75),
+        const Offset(0.75, 0.60),
+        const Offset(0.75, 0.50),
+        const Offset(1.0, 4 / 7),
+        const Offset(1.0, 0.50),
+      ];
+      expect(res.prPoints.length, expectedPr.length);
+      for (var i = 0; i < expectedPr.length; i++) {
+        expect(res.prPoints[i].dx, closeTo(expectedPr[i].dx, 1e-9));
+        expect(res.prPoints[i].dy, closeTo(expectedPr[i].dy, 1e-9));
+      }
+      // 12 of 16 (pos, neg) pairs ranked correctly -> exact 0.75.
+      expect(res.rocAuc, closeTo(0.75, 1e-9));
+      // Trapezoidal integral over exact PR curve: 0.5 + 17/96 + 15/112 = 545/672.
+      expect(res.prAuc, closeTo(545 / 672, 1e-9));
+
+      // Tied scores create a diagonal ROC segment ((0, 0.5) -> (0.5, 1.0)),
+      // pinning trapezoidal integration (0.875) vs right/left Riemann sums.
+      final tied = ScienceAiChart.computeRocPr(
+        const [0.9, 0.5, 0.5, 0.1],
+        const [true, true, false, false],
+      );
+      expect(tied.rocPoints, const [
+        Offset(0.0, 0.0),
+        Offset(0.0, 0.5),
+        Offset(0.5, 1.0),
+        Offset(1.0, 1.0),
+      ]);
+      expect(tied.rocAuc, closeTo(0.875, 1e-9));
     },
   );
 
   test(
-    'semantic: calibration computes binned observed frequency without dropping on calibrated predictions',
+    'semantic: calibration computes exact binned meanPred, obsFreq, and count',
     () {
       final bins = ScienceAiChart.computeCalibration(
-        const [0.1, 0.12, 0.35, 0.38, 0.65, 0.68, 0.90, 0.95],
+        const [0.10, 0.12, 0.35, 0.38, 0.65, 0.68, 0.90, 0.95],
         const [false, false, false, true, true, false, true, true],
         bins: 4,
       );
       expect(bins.length, 4);
-      expect(bins.last.meanPred, greaterThan(0.8));
-      expect(bins.last.obsFreq, 1.0);
-      expect(bins.first.obsFreq, 0.0);
+      final expected = [
+        (meanPred: 0.11, obsFreq: 0.0, count: 2),
+        (meanPred: 0.365, obsFreq: 0.5, count: 2),
+        (meanPred: 0.665, obsFreq: 0.5, count: 2),
+        (meanPred: 0.925, obsFreq: 1.0, count: 2),
+      ];
+      for (var i = 0; i < expected.length; i++) {
+        expect(bins[i].meanPred, closeTo(expected[i].meanPred, 1e-9));
+        expect(bins[i].obsFreq, closeTo(expected[i].obsFreq, 1e-9));
+        expect(bins[i].count, expected[i].count);
+      }
     },
   );
 
   test(
-    'semantic: confusion_matrix computes predicted vs actual and cells sum to sample count',
+    'semantic: confusion_matrix computes exact predicted vs actual cells [[2, 1], [1, 2]] and asymmetric [[2, 2], [0, 1]]',
     () {
       final page = _makeSciencePage('confusion_matrix');
       final cm = ScienceAiChart.computeConfusionMatrix(
@@ -338,11 +397,32 @@ void main() {
         page.descriptor.fields[1],
         page.descriptor.fields[2],
       );
-      final cellSum = cm.counts
-          .expand((row) => row)
-          .fold<int>(0, (a, b) => a + b);
-      expect(cm.total, page.rows.length);
-      expect(cellSum, page.rows.length);
+      expect(cm.labels, const ['0', '1']);
+      expect(cm.counts, const [
+        [2, 1],
+        [1, 2],
+      ]);
+      expect(cm.total, 6);
+
+      // Asymmetric samples ensure row (actual) and column (predicted) axes cannot swap.
+      final asymRows = const [
+        {'item': 'A1', 'v1': 0, 'v2': 0},
+        {'item': 'A2', 'v1': 0, 'v2': 0},
+        {'item': 'A3', 'v1': 1, 'v2': 0},
+        {'item': 'A4', 'v1': 1, 'v2': 0},
+        {'item': 'A5', 'v1': 1, 'v2': 1},
+      ];
+      final asym = ScienceAiChart.computeConfusionMatrix(
+        asymRows,
+        page.descriptor.fields[0],
+        page.descriptor.fields[1],
+        page.descriptor.fields[2],
+      );
+      expect(asym.counts, const [
+        [2, 2],
+        [0, 1],
+      ]);
+      expect(asym.total, 5);
     },
   );
 
@@ -358,7 +438,7 @@ void main() {
   );
 
   test(
-    'semantic: irt_icc passes through P(b)=0.5 monotonically from item b and a',
+    'semantic: irt_icc matches exact 2PL probabilities P(theta) = 1 / (1 + exp(-a*(theta-b)))',
     () {
       final curves = ScienceAiChart.computeIrtCurves(
         const [-1.0, 1.0],
@@ -367,43 +447,70 @@ void main() {
         infoCurve: false,
         steps: 60,
       );
-      // theta=1.0 is index (1.0 - (-3.0)) / 6.0 * 60 = 40
-      expect(curves[1].points[40].dx, closeTo(1.0, 1e-6));
-      expect(curves[1].points[40].dy, closeTo(0.5, 1e-6));
+      // theta = -1.0 (idx 20), theta = 0.0 (idx 30), theta = 1.0 (idx 40)
+      expect(curves[0].points[20].dx, closeTo(-1.0, 1e-9));
+      expect(curves[0].points[20].dy, closeTo(0.5, 1e-9));
+      expect(curves[0].points[30].dy, closeTo(0.7310585786300049, 1e-9));
+      expect(curves[0].points[40].dy, closeTo(0.8807970779778823, 1e-9));
+
+      expect(curves[1].points[20].dy, closeTo(0.01798620996209156, 1e-9));
+      expect(curves[1].points[30].dy, closeTo(0.11920292202211755, 1e-9));
+      expect(curves[1].points[40].dx, closeTo(1.0, 1e-9));
+      expect(curves[1].points[40].dy, closeTo(0.5, 1e-9));
       for (var i = 1; i < curves[0].points.length; i++) {
         expect(curves[0].points[i].dy, greaterThan(curves[0].points[i - 1].dy));
       }
     },
   );
 
-  test('semantic: irt_iif peak scales as a^2 / 4 at theta == b', () {
-    final curves = ScienceAiChart.computeIrtCurves(
-      const [0.0, 0.0],
-      const [1.0, 2.0],
-      const ['LowA', 'HighA'],
-      infoCurve: true,
-      steps: 60,
-    );
-    // theta=0.0 is step 30: max info = a^2 * 0.25 -> 0.25 vs 1.0
-    expect(curves[0].points[30].dy, closeTo(0.25, 1e-6));
-    expect(curves[1].points[30].dy, closeTo(1.0, 1e-6));
-  });
+  test(
+    'semantic: irt_iif matches exact Fisher information I(theta) = a^2 * P * (1 - P) at fixed theta',
+    () {
+      final curves = ScienceAiChart.computeIrtCurves(
+        const [0.0, 0.0],
+        const [1.0, 2.0],
+        const ['LowA', 'HighA'],
+        infoCurve: true,
+        steps: 60,
+      );
+      // theta = 0.0 (idx 30): max info = a^2 * 0.25 -> 0.25 vs 1.0
+      expect(curves[0].points[30].dy, closeTo(0.25, 1e-9));
+      expect(curves[1].points[30].dy, closeTo(1.0, 1e-9));
+      // theta = 1.0 (idx 40):
+      // a=1: P=1/(1+e^-1)=0.7310585786300049 -> I=0.19661193324148185
+      // a=2: P=1/(1+e^-2)=0.8807970779778823 -> I=4*P*(1-P)=0.41997434161402614
+      expect(curves[0].points[40].dx, closeTo(1.0, 1e-9));
+      expect(curves[0].points[40].dy, closeTo(0.19661193324148185, 1e-9));
+      expect(curves[1].points[40].dy, closeTo(0.41997434161402614, 1e-9));
+    },
+  );
 
   test(
-    'semantic: wright_map places persons on left bins and items on same logit scale',
+    'semantic: wright_map places exact person bin counts and item positions on one logit scale',
     () {
-      final persons = const [-1.8, -0.9, -0.2, 0.5, 1.2, 1.9];
-      final items = const [-1.5, 0.0, 1.4];
+      const persons = [-1.8, -0.9, -0.2, 0.5, 1.2, 1.9];
+      const items = [-1.5, 0.0, 1.4];
       final wm = ScienceAiChart.computeWrightMap(persons, items, const [
         'Q1',
         'Q2',
         'Q3',
+      ], binCount: 6);
+      expect(wm.minLogit, -3.0);
+      expect(wm.maxLogit, 3.0);
+      expect(wm.personBins.map((b) => b.midLogit).toList(), [
+        -2.5,
+        -1.5,
+        -0.5,
+        0.5,
+        1.5,
+        2.5,
       ]);
-      final totalPersons = wm.personBins.fold<int>(0, (a, b) => a + b.count);
-      expect(totalPersons, persons.length);
-      expect(wm.items.length, items.length);
-      expect(wm.minLogit, lessThanOrEqualTo(-3.0));
-      expect(wm.maxLogit, greaterThanOrEqualTo(3.0));
+      expect(wm.personBins.map((b) => b.count).toList(), [0, 1, 2, 1, 2, 0]);
+      expect(wm.items, const [
+        (label: 'Q1', difficulty: -1.5),
+        (label: 'Q2', difficulty: 0.0),
+        (label: 'Q3', difficulty: 1.4),
+      ]);
     },
   );
 
@@ -411,25 +518,31 @@ void main() {
     'semantic: item_diff_disc distinguishes item b and a directly from row measures',
     () {
       final page = _makeSciencePage('item_diff_disc');
-      expect((page.rows[0]['v1'] as num).toDouble(), lessThan(0));
-      expect((page.rows[2]['v2'] as num).toDouble(), greaterThan(2.0));
+      expect((page.rows[0]['v1'] as num).toDouble(), -1.2);
+      expect((page.rows[2]['v2'] as num).toDouble(), 2.1);
     },
   );
 
   test(
-    'semantic: kaplan_meier starts at 1.0, is non-increasing, and marks censored observations',
+    'semantic: kaplan_meier produces exact product-limit survival steps with censoring',
     () {
       final km = ScienceAiChart.computeKaplanMeier(
         const [2, 4, 6, 9, 12],
         const [true, false, true, false, true],
       );
-      expect(km.first.time, 0.0);
-      expect(km.first.survival, 1.0);
-      expect(km[2].censored, isTrue);
-      expect(km[2].survival, km[1].survival); // censoring does not drop S(t)
-      for (var i = 1; i < km.length; i++) {
-        expect(km[i].survival, lessThanOrEqualTo(km[i - 1].survival));
-        expect(km[i].survival, greaterThanOrEqualTo(0.0));
+      final expected = [
+        (time: 0.0, survival: 1.0, censored: false),
+        (time: 2.0, survival: 0.8, censored: false),
+        (time: 4.0, survival: 0.8, censored: true),
+        (time: 6.0, survival: 8 / 15, censored: false),
+        (time: 9.0, survival: 8 / 15, censored: true),
+        (time: 12.0, survival: 0.0, censored: false),
+      ];
+      expect(km.length, expected.length);
+      for (var i = 0; i < expected.length; i++) {
+        expect(km[i].time, closeTo(expected[i].time, 1e-9));
+        expect(km[i].survival, closeTo(expected[i].survival, 1e-9));
+        expect(km[i].censored, expected[i].censored);
       }
     },
   );
