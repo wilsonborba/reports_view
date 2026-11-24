@@ -439,7 +439,7 @@ DatasetPage _makeGeoPage(
       'v1': 640,
     },
     {
-      dimField: lbl('Sao Paulo', 'São Paulo', 'เซาเปาโล'),
+      dimField: lbl('São Paulo', 'São Paulo', 'เซาเปาโล'),
       'lat': -23.55,
       'lon': -46.63,
       'v1': 1180,
