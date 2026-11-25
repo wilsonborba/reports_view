@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:reports_view/reports_view.dart';
 
 const _palette = ReportPalette(
@@ -215,11 +216,64 @@ void main() {
       labelRects.add(tester.getRect(finder));
     }
     labelRects.sort((a, b) => a.left.compareTo(b.left));
+    final chartRect = tester.getRect(find.byType(SeriesLineChart));
+    for (var index = 0; index < labels.length; index++) {
+      final label = labels[index];
+      final titleFinder = find.ancestor(
+        of: find.text(label).first,
+        matching: find.byType(SideTitleWidget),
+      );
+      final title = tester.widget<SideTitleWidget>(titleFinder.first);
+      expect(title.meta.axisSide, AxisSide.bottom);
+      final plotLeft = chartRect.right - title.meta.parentAxisSize;
+      final expectedTickX = plotLeft + title.meta.axisPosition;
+      final rect = tester.getRect(find.text(label).first);
+      if (index == 0) {
+        expect(rect.left, closeTo(plotLeft, 0.1));
+        expect(rect.center.dx, greaterThan(expectedTickX));
+      } else if (index == labels.length - 1) {
+        expect(rect.right, closeTo(chartRect.right, 0.1));
+        expect(rect.center.dx, lessThan(expectedTickX));
+      } else {
+        expect(rect.center.dx, closeTo(expectedTickX, 0.1));
+      }
+    }
     for (var i = 1; i < labelRects.length; i++) {
       expect(
         labelRects[i - 1].right,
         lessThanOrEqualTo(labelRects[i].left),
         reason: 'line label rectangles: $labelRects',
+      );
+    }
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('thinned line labels use one selected tick interval', (
+    tester,
+  ) async {
+    final labels = [for (var i = 0; i < 25; i++) 'C$i'];
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(_lineChart(390, labels));
+    await tester.pumpAndSettle();
+
+    final visibleLabels = [
+      for (var i = 0; i < labels.length; i += 3) labels[i],
+    ];
+    final labelRects = <Rect>[];
+    for (final label in visibleLabels) {
+      final finder = find.text(label).first;
+      final text = tester.widget<Text>(finder);
+      expect(text.maxLines, 1);
+      expect(text.overflow, TextOverflow.ellipsis);
+      labelRects.add(tester.getRect(finder));
+    }
+    labelRects.sort((a, b) => a.left.compareTo(b.left));
+    for (var i = 1; i < labelRects.length; i++) {
+      expect(
+        labelRects[i - 1].right,
+        lessThanOrEqualTo(labelRects[i].left + 0.1),
+        reason: 'thinned line labels overlap: $labelRects',
       );
     }
     expect(tester.takeException(), isNull);

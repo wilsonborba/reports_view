@@ -104,12 +104,14 @@ class ChartParts {
               : axisSpan > 0
                   ? _axisTickLabelWidth(meta, i, step)
                   : meta.parentAxisSize / labels.length;
-          final labelWidth = categoryWidth * step;
+          final labelWidth = evenlySpacedBarGroupWidth != null || axisSpan <= 0
+              ? categoryWidth * step
+              : categoryWidth;
           return SideTitleWidget(
             meta: meta,
             fitInside: SideTitleFitInsideData.fromTitleMeta(meta, distanceFromEdge: 0),
-            child: SizedBox(
-              width: labelWidth,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: labelWidth),
               child: Text(
                 labels[i],
                 maxLines: 1,
