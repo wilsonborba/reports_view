@@ -111,8 +111,9 @@ class ChartParts {
           if (i < 0 ||
               i >= labels.length ||
               i % step != 0 ||
-              (v - i).abs() > 0.01)
+              (v - i).abs() > 0.01) {
             return const SizedBox.shrink();
+          }
           final axisSpan = meta.max - meta.min;
           final categoryWidth = evenlySpacedBarGroupWidth != null
               ? (meta.parentAxisSize -
@@ -164,8 +165,9 @@ class ChartParts {
 
   /// Short label for an x value (dates show month-day).
   static String xLabel(dynamic v, FieldInfo f) {
-    if (f.type == 'date' && v is String && v.length >= 10)
+    if (f.type == 'date' && v is String && v.length >= 10) {
       return shortDateText(v);
+    }
     return valueText(v, f);
   }
 }
