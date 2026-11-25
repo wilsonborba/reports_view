@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:reports_view/reports_view.dart';
 
@@ -57,6 +58,20 @@ const _darkPalette = ReportPalette(
   other: Color(0xFF8D8D8D),
   highlight: Color(0xFF78A9FF),
 );
+
+class _PermissiveMaterialLocalizations extends LocalizationsDelegate<MaterialLocalizations> {
+  const _PermissiveMaterialLocalizations();
+
+  @override
+  bool isSupported(Locale locale) => true;
+
+  @override
+  Future<MaterialLocalizations> load(Locale locale) async =>
+      const DefaultMaterialLocalizations();
+
+  @override
+  bool shouldReload(_PermissiveMaterialLocalizations old) => false;
+}
 
 void main() {
   test('C5: niceInterval uses {1, 2, 2.5, 5} * 10^n with 3 to 7 ticks', () {
@@ -160,5 +175,309 @@ void main() {
         }
       }
     }
+  });
+
+  testWidgets(
+    'ChartFrame keeps long localized headers readable and table toggle usable',
+    (tester) async {
+      const locales = [Locale('en'), Locale('pt', 'BR'), Locale('th')];
+      String titleFor(Locale locale) => switch (locale.languageCode) {
+        'pt' =>
+          'Distribuição das pontuações das tentativas concluídas por faixa',
+        'th' => 'การกระจายคะแนนของแบบทดสอบที่ทำเสร็จแล้วตามช่วงคะแนน',
+        _ => 'Distribution of completed attempts grouped by score band',
+      };
+      String descriptionFor(Locale locale) => switch (locale.languageCode) {
+        'pt' =>
+          'Pontuações das tentativas concluídas agrupadas em faixas percentuais fixas',
+        'th' => 'คะแนนของแบบทดสอบที่ทำเสร็จแล้วจัดกลุ่มตามช่วงเปอร์เซ็นต์คงที่',
+        _ => 'Completed attempt scores grouped into fixed percentage bands',
+      };
+      String tableLabelFor(Locale locale) => switch (locale.languageCode) {
+        'pt' => 'Mostrar como tabela',
+        'th' => 'แสดงเป็นตาราง',
+        _ => 'Show as table',
+      };
+      String chartLabelFor(Locale locale) => switch (locale.languageCode) {
+        'pt' => 'Mostrar como gráfico',
+        'th' => 'แสดงเป็นแผนภูมิ',
+        _ => 'Show as chart',
+      };
+      String seeAllLabelFor(Locale locale) => switch (locale.languageCode) {
+        'pt' => 'Ver tudo',
+        'th' => 'ดูทั้งหมด',
+        _ => 'See all',
+      };
+      String tierLabelFor(Locale locale) => switch (locale.languageCode) {
+        'th' => 'ข้อมูลจริง',
+        _ => 'Real',
+      };
+
+      final cases =
+          <
+            ({
+              Locale locale,
+              double cardWidth,
+              double viewportWidth,
+              double scale,
+            })
+          >[
+            for (final locale in locales)
+              for (final cardWidth in [320.0, 390.0])
+                for (final scale in [1.0, 1.5])
+                  (
+                    locale: locale,
+                    cardWidth: cardWidth,
+                    viewportWidth: cardWidth,
+                    scale: scale,
+                  ),
+            for (final locale in locales)
+              for (final cardWidth in [480.0, 500.0, 600.0])
+                (
+                  locale: locale,
+                  cardWidth: cardWidth,
+                  viewportWidth: cardWidth,
+                  scale: 1.0,
+                ),
+            for (final locale in locales)
+              (
+                locale: locale,
+                cardWidth: 390.0,
+                viewportWidth: 1440.0,
+                scale: 1.0,
+              ),
+            for (final locale in locales)
+              (
+                locale: locale,
+                cardWidth: 1440.0,
+                viewportWidth: 1440.0,
+                scale: 1.0,
+              ),
+          ];
+
+      for (final testCase in cases) {
+        final title = titleFor(testCase.locale);
+        final description = descriptionFor(testCase.locale);
+        final page = DatasetPage(
+          descriptor: DatasetDescriptor(
+            datasetId: 'responsive-score-distribution',
+            title: title,
+            description: description,
+            equation: null,
+            fields: const [
+              FieldInfo(
+                name: 'score_band',
+                label: 'Score band',
+                type: 'string',
+                role: 'dimension',
+              ),
+              FieldInfo(
+                name: 'attempt_count',
+                label: 'Attempts',
+                type: 'integer',
+                role: 'measure',
+              ),
+            ],
+            filters: const [],
+            dataTier: 'real',
+            visibility: 'restricted',
+            meta: const DatasetMeta(tier: 'real'),
+          ),
+          rows: const [
+            {'score_band': '0% to <50%', 'attempt_count': 1},
+            {'score_band': '50% to <80%', 'attempt_count': 1},
+            {'score_band': '80% to 100%', 'attempt_count': 1},
+          ],
+          offset: 0,
+          limit: 3,
+          totalRows: 3,
+        );
+
+        tester.view.physicalSize = Size(testCase.viewportWidth, 900);
+        tester.view.devicePixelRatio = 1;
+        var seeAllCount = 0;
+        await tester.pumpWidget(
+          MaterialApp(
+            locale: const Locale('en'),
+            theme: ThemeData.light().copyWith(
+              extensions: const [_lightPalette],
+            ),
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(textScaler: TextScaler.linear(testCase.scale)),
+              child: child!,
+            ),
+            home: Localizations(
+              locale: testCase.locale,
+              delegates: const [
+                _PermissiveMaterialLocalizations(),
+                DefaultWidgetsLocalizations.delegate,
+              ],
+              child: Scaffold(
+                body: SingleChildScrollView(
+                  child: Center(
+                    child: Align(
+                      alignment: Alignment.topCenter,
+                      child: SizedBox(
+                        width: testCase.cardWidth,
+                        child: ChartFrame(
+                          page: page,
+                          onSeeAll: () => seeAllCount++,
+                          child: const SizedBox(
+                            height: 120,
+                            child: ColoredBox(color: Colors.blue),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final caseLabel =
+            'locale=${testCase.locale} card=${testCase.cardWidth} '
+            'viewport=${testCase.viewportWidth} scale=${testCase.scale}';
+        expect(tester.takeException(), isNull, reason: caseLabel);
+        final titleFinder = find.text(title);
+        final descriptionFinder = find.text(description);
+        expect(titleFinder, findsOneWidget, reason: caseLabel);
+        expect(descriptionFinder, findsOneWidget, reason: caseLabel);
+        expect(
+          tester.renderObject<RenderParagraph>(titleFinder).didExceedMaxLines,
+          isFalse,
+          reason: 'The title must remain fully available: $caseLabel',
+        );
+        expect(
+          tester
+              .renderObject<RenderParagraph>(descriptionFinder)
+              .didExceedMaxLines,
+          isFalse,
+          reason: 'The description must remain fully available: $caseLabel',
+        );
+
+        final tableButton = find.text(tableLabelFor(testCase.locale));
+        expect(tableButton, findsOneWidget, reason: caseLabel);
+        expect(
+          find.text(tierLabelFor(testCase.locale)),
+          findsOneWidget,
+          reason: caseLabel,
+        );
+        final seeAllButton = find.text(seeAllLabelFor(testCase.locale));
+        expect(seeAllButton, findsOneWidget, reason: caseLabel);
+        await tester.tap(seeAllButton);
+        expect(seeAllCount, 1, reason: caseLabel);
+        expect(find.byType(DataTableView), findsNothing, reason: caseLabel);
+        await tester.tap(tableButton);
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull, reason: caseLabel);
+        expect(find.byType(DataTableView), findsOneWidget, reason: caseLabel);
+        expect(
+          find.text(chartLabelFor(testCase.locale)),
+          findsOneWidget,
+          reason: caseLabel,
+        );
+        await tester.pumpWidget(const SizedBox.shrink());
+      }
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    },
+  );
+
+  testWidgets('ChartFrame accounts for themed TextButton padding', (
+    tester,
+  ) async {
+    const title = 'Distribution of completed attempts grouped by score band';
+    const description =
+        'Completed attempt scores grouped into fixed percentage bands';
+    tester.view.physicalSize = const Size(600, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final page = DatasetPage(
+      descriptor: const DatasetDescriptor(
+        datasetId: 'responsive-score-distribution',
+        title: title,
+        description: description,
+        equation: null,
+        fields: [
+          FieldInfo(
+            name: 'score_band',
+            label: 'Score band',
+            type: 'string',
+            role: 'dimension',
+          ),
+          FieldInfo(
+            name: 'attempt_count',
+            label: 'Attempts',
+            type: 'integer',
+            role: 'measure',
+          ),
+        ],
+        filters: [],
+        dataTier: 'real',
+        visibility: 'restricted',
+        meta: DatasetMeta(tier: 'real'),
+      ),
+      rows: const [
+        {'score_band': '0% to <50%', 'attempt_count': 1},
+        {'score_band': '50% to <80%', 'attempt_count': 1},
+        {'score_band': '80% to 100%', 'attempt_count': 1},
+      ],
+      offset: 0,
+      limit: 3,
+      totalRows: 3,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData.light().copyWith(
+          extensions: const [_lightPalette],
+          textButtonTheme: TextButtonThemeData(
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 64),
+            ),
+          ),
+        ),
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: SizedBox(
+              width: 600,
+              child: ChartFrame(
+                page: page,
+                onSeeAll: () {},
+                child: const SizedBox(
+                  height: 120,
+                  child: ColoredBox(color: Colors.blue),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final titleFinder = find.text(title);
+    final descriptionFinder = find.text(description);
+    expect(titleFinder, findsOneWidget);
+    expect(descriptionFinder, findsOneWidget);
+    expect(
+      tester.renderObject<RenderParagraph>(titleFinder).didExceedMaxLines,
+      isFalse,
+    );
+    expect(
+      tester.renderObject<RenderParagraph>(descriptionFinder).didExceedMaxLines,
+      isFalse,
+    );
+    final actionTop = tester.getTopLeft(find.text('Show as table')).dy;
+    final descriptionBottom = tester.getBottomRight(descriptionFinder).dy;
+    expect(actionTop, greaterThan(descriptionBottom));
+    expect(tester.takeException(), isNull);
   });
 }

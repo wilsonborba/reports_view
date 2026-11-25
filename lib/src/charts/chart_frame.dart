@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import '../l10n/chart_strings.dart';
 import '../models/report.dart';
@@ -251,6 +253,187 @@ class _ChartFrameState extends State<ChartFrame> {
     );
   }
 
+  Widget _buildHeader(
+    BuildContext context,
+    ReportPalette p, {
+    required String resolvedTitle,
+    required String resolvedSubtitle,
+    required String tier,
+  }) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final textScale = MediaQuery.textScalerOf(context).scale(1);
+        final inheritedTextStyle = DefaultTextStyle.of(context).style;
+        final titleStyle = inheritedTextStyle.merge(
+          TextStyle(
+            color: p.textPrimary,
+            fontSize: mode == ChartFrameMode.full ? 16 : 14,
+            fontWeight: FontWeight.w600,
+          ),
+        );
+        final subtitleStyle = inheritedTextStyle.merge(
+          TextStyle(color: p.textMuted, fontSize: 12),
+        );
+        double measureText(String text, TextStyle style) {
+          final painter = TextPainter(
+            text: TextSpan(text: text, style: style),
+            textDirection: Directionality.of(context),
+            textScaler: MediaQuery.textScalerOf(context),
+          )..layout();
+          final width = painter.width;
+          painter.dispose();
+          return width;
+        }
+
+        bool exceedsTwoLines(String text, TextStyle style, double width) {
+          final painter = TextPainter(
+            text: TextSpan(text: text, style: style),
+            textDirection: Directionality.of(context),
+            textScaler: MediaQuery.textScalerOf(context),
+            maxLines: 2,
+            ellipsis: '\u2026',
+          )..layout(maxWidth: math.max(1, width));
+          final exceeds = painter.didExceedMaxLines;
+          painter.dispose();
+          return exceeds;
+        }
+
+        final hasTableToggle =
+            widget.onToggleTable != null ||
+            (widget.enableTableToggle && state == ChartFrameState.ready);
+        final tableLabel = _showingTable
+            ? context.tr('show_as_chart')
+            : context.tr('show_as_table');
+        final tableToggle = hasTableToggle
+            ? TextButton(
+                onPressed:
+                    widget.onToggleTable ??
+                    () => setState(() => _localTable = !_localTable),
+                child: Text(tableLabel),
+              )
+            : null;
+        final seeAllLabel = context.tr('see_all');
+        final seeAll = mode == ChartFrameMode.card && onSeeAll != null
+            ? TextButton(onPressed: onSeeAll, child: Text(seeAllLabel))
+            : null;
+        const enabledButtonStates = <WidgetState>{};
+        final actionButton = tableToggle ?? seeAll;
+        final widgetButtonStyle = actionButton?.style;
+        final themeButtonStyle = TextButtonTheme.of(context).style;
+        // Resolve the exact TextButton defaults from the existing action widget.
+        final defaultButtonStyle = actionButton?.defaultStyleOf(context);
+        final buttonStyle =
+            widgetButtonStyle?.textStyle?.resolve(enabledButtonStates) ??
+            themeButtonStyle?.textStyle?.resolve(enabledButtonStates) ??
+            defaultButtonStyle?.textStyle?.resolve(enabledButtonStates) ??
+            Theme.of(context).textTheme.labelLarge!;
+        final buttonPadding =
+            widgetButtonStyle?.padding?.resolve(enabledButtonStates) ??
+            themeButtonStyle?.padding?.resolve(enabledButtonStates) ??
+            defaultButtonStyle?.padding?.resolve(enabledButtonStates) ??
+            EdgeInsets.zero;
+        final minButtonSize =
+            widgetButtonStyle?.minimumSize?.resolve(enabledButtonStates) ??
+            themeButtonStyle?.minimumSize?.resolve(enabledButtonStates) ??
+            defaultButtonStyle?.minimumSize?.resolve(enabledButtonStates) ??
+            Size.zero;
+        final visualDensity =
+            widgetButtonStyle?.visualDensity ??
+            themeButtonStyle?.visualDensity ??
+            defaultButtonStyle?.visualDensity ??
+            Theme.of(context).visualDensity;
+        final minButtonWidth = math.max(
+          0.0,
+          minButtonSize.width + visualDensity.baseSizeAdjustment.dx,
+        );
+        double buttonWidth(String label) => math.max(
+          minButtonWidth,
+          measureText(label, buttonStyle) + buttonPadding.horizontal,
+        );
+        final tierStyle = inheritedTextStyle.merge(
+          const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
+        );
+        final tierWidth = measureText(tier, tierStyle) + 16;
+        final actionWidth =
+            8 +
+            tierWidth +
+            (tableToggle == null ? 0 : 6 + buttonWidth(tableLabel)) +
+            (seeAll == null ? 0 : 4 + buttonWidth(seeAllLabel));
+        final headingWidth = constraints.maxWidth - actionWidth;
+        final resolvedHeadingTitle = resolvedTitle.isEmpty
+            ? page.descriptor.datasetId
+            : resolvedTitle;
+        final compact =
+            constraints.maxWidth < 440 * textScale ||
+            exceedsTwoLines(resolvedHeadingTitle, titleStyle, headingWidth) ||
+            (resolvedSubtitle.isNotEmpty &&
+                exceedsTwoLines(resolvedSubtitle, subtitleStyle, headingWidth));
+        final heading = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              resolvedHeadingTitle,
+              maxLines: compact ? null : 2,
+              overflow: compact ? null : TextOverflow.ellipsis,
+              style: titleStyle,
+            ),
+            if (resolvedSubtitle.isNotEmpty) ...[
+              const SizedBox(height: 2),
+              Text(
+                resolvedSubtitle,
+                maxLines: compact ? null : 2,
+                overflow: compact ? null : TextOverflow.ellipsis,
+                style: subtitleStyle,
+              ),
+            ],
+          ],
+        );
+        final tierBadge = Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          decoration: BoxDecoration(
+            color: p.surfaceAlt,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(tier, style: tierStyle.copyWith(color: p.textPrimary)),
+        );
+        final actions = [tierBadge, ?tableToggle, ?seeAll];
+
+        if (compact) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              heading,
+              const SizedBox(height: 4),
+              Align(
+                alignment: AlignmentDirectional.centerEnd,
+                child: Wrap(
+                  alignment: WrapAlignment.end,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 6,
+                  runSpacing: 2,
+                  children: actions,
+                ),
+              ),
+            ],
+          );
+        }
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: heading),
+            const SizedBox(width: 8),
+            tierBadge,
+            if (tableToggle != null) ...[const SizedBox(width: 6), tableToggle],
+            if (seeAll != null) ...[const SizedBox(width: 4), seeAll],
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
@@ -269,78 +452,31 @@ class _ChartFrameState extends State<ChartFrame> {
         ),
         padding: EdgeInsets.all(mode == ChartFrameMode.embed ? 10 : 14),
         child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      resolvedTitle.isEmpty ? page.descriptor.datasetId : resolvedTitle,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: p.textPrimary,
-                        fontSize: mode == ChartFrameMode.full ? 16 : 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    if (resolvedSubtitle.isNotEmpty) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        resolvedSubtitle,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(color: p.textMuted, fontSize: 12),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: p.surfaceAlt,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  tier,
-                  style: TextStyle(color: p.textPrimary, fontSize: 11, fontWeight: FontWeight.w500),
-                ),
-              ),
-              if (widget.onToggleTable != null || (widget.enableTableToggle && state == ChartFrameState.ready)) ...[
-                const SizedBox(width: 6),
-                TextButton(
-                  onPressed: widget.onToggleTable ?? () => setState(() => _localTable = !_localTable),
-                  child: Text(_showingTable ? context.tr('show_as_chart') : context.tr('show_as_table')),
-                ),
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildHeader(
+              context,
+              p,
+              resolvedTitle: resolvedTitle,
+              resolvedSubtitle: resolvedSubtitle,
+              tier: tier,
+            ),
+            const SizedBox(height: 8),
+            Flexible(fit: FlexFit.loose, child: _buildBody(context, p)),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 12,
+              runSpacing: 4,
+              children: [
+                Text(_sourceText(context), style: TextStyle(color: p.textMuted, fontSize: 11)),
+                Text(_periodText(context), style: TextStyle(color: p.textMuted, fontSize: 11)),
+                Text(_updatedText(context), style: TextStyle(color: p.textMuted, fontSize: 11)),
               ],
-              if (mode == ChartFrameMode.card && onSeeAll != null) ...[
-                const SizedBox(width: 4),
-                TextButton(onPressed: onSeeAll, child: Text(context.tr('see_all'))),
-              ],
-            ],
-          ),
-          const SizedBox(height: 8),
-          Flexible(fit: FlexFit.loose, child: _buildBody(context, p)),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 12,
-            runSpacing: 4,
-            children: [
-              Text(_sourceText(context), style: TextStyle(color: p.textMuted, fontSize: 11)),
-              Text(_periodText(context), style: TextStyle(color: p.textMuted, fontSize: 11)),
-              Text(_updatedText(context), style: TextStyle(color: p.textMuted, fontSize: 11)),
-            ],
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
-    ),
     );
   }
 }
