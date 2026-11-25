@@ -76,6 +76,8 @@ class ChartParts {
     ReportPalette p,
     List<String> labels, {
     int maxLabels = 12,
+    /// Bar charts use `spaceEvenly`; this is the width of each category group.
+    double? evenlySpacedBarGroupWidth,
     String? axisTitle,
   }) {
     final step = (labels.length / maxLabels).ceil().clamp(1, 1 << 20);
@@ -96,10 +98,18 @@ class ChartParts {
         getTitlesWidget: (v, meta) {
           final i = v.round();
           if (i < 0 || i >= labels.length || i % step != 0 || (v - i).abs() > 0.01) return const SizedBox.shrink();
+          final axisSpan = meta.max - meta.min;
+          final categoryWidth = evenlySpacedBarGroupWidth != null
+              ? (meta.parentAxisSize - labels.length * evenlySpacedBarGroupWidth) / (labels.length + 1) + evenlySpacedBarGroupWidth
+              : axisSpan > 0
+                  ? _axisTickLabelWidth(meta, i, step)
+                  : meta.parentAxisSize / labels.length;
+          final labelWidth = categoryWidth * step;
           return SideTitleWidget(
             meta: meta,
+            fitInside: SideTitleFitInsideData.fromTitleMeta(meta, distanceFromEdge: 0),
             child: SizedBox(
-              width: 64,
+              width: labelWidth,
               child: Text(
                 labels[i],
                 maxLines: 1,
@@ -112,6 +122,15 @@ class ChartParts {
         },
       ),
     );
+  }
+
+  static double _axisTickLabelWidth(TitleMeta meta, int index, int step) {
+    final tickSpacing = meta.parentAxisSize * meta.appliedInterval / (meta.max - meta.min);
+    final selectedTickSpacing = tickSpacing * step;
+    if (index == 0) return selectedTickSpacing / 2;
+    if ((meta.max - index).abs() < 0.01) return selectedTickSpacing / 2;
+    final remainingToEnd = meta.parentAxisSize * (meta.max - index) / (meta.max - meta.min);
+    return math.min(selectedTickSpacing, remainingToEnd * 2);
   }
 
   static const AxisTitles none = AxisTitles(sideTitles: SideTitles(showTitles: false));

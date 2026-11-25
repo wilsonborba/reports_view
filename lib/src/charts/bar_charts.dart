@@ -79,7 +79,16 @@ class _VerticalBarChartState extends State<VerticalBarChart> {
             borderData: FlBorderData(show: false),
             titlesData: FlTitlesData(
               leftTitles: showAxis ? ChartParts.leftTitles(p, reserved: widget.leftReserved) : ChartParts.none,
-              bottomTitles: ChartParts.bottomLabels(p, labels, maxLabels: perPoint == null ? 12 : (rows.length * perPoint / 64).floor().clamp(2, 1 << 20)),
+              bottomTitles: ChartParts.bottomLabels(
+                p,
+                labels,
+                maxLabels: perPoint == null
+                    ? 12
+                    : (rows.length * perPoint / 64).floor().clamp(2, 1 << 20),
+                evenlySpacedBarGroupWidth: perPoint == null
+                    ? (300 / rows.length).clamp(3.0, 24.0)
+                    : (perPoint * 0.6).clamp(3.0, 24.0),
+              ),
               topTitles: ChartParts.none,
               rightTitles: ChartParts.none,
             ),
@@ -205,7 +214,12 @@ class _StackedBarChartState extends State<StackedBarChart> {
               borderData: FlBorderData(show: false),
               titlesData: FlTitlesData(
                 leftTitles: ChartParts.leftTitles(p),
-                bottomTitles: ChartParts.bottomLabels(p, labels),
+                bottomTitles: ChartParts.bottomLabels(
+                  p,
+                  labels,
+                  evenlySpacedBarGroupWidth:
+                      (360 / xKeys.length).clamp(3.0, 24.0),
+                ),
                 topTitles: ChartParts.none,
                 rightTitles: ChartParts.none,
               ),
