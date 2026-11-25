@@ -5,10 +5,12 @@
 ### 🐛 Bug Fixes
 
 - *(table)* Align header columns with scaled rows
+- *(charts)* Keep localized headings and table controls readable on narrow cards
 
 ### 🧪 Testing
 
 - Refresh table geometry goldens
+- Cover localized headings, larger text and themed controls; capture complete narrow cards
 
 ## [0.2.0] - 2026-11-20
 
