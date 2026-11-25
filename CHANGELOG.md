@@ -2,15 +2,42 @@
 
 ## [unreleased]
 
+### 🚀 Features
+
+- *(catalog)* Add flow, process, and structure diagram templates (items 74 to 89) (#60)
+- *(catalog)* Add sets templates (items 90 to 92: venn, euler, upset) (#61)
+- *(geo)* Add geographic catalog visuals bubble_map, choropleth, geo_heatmap, flow_map, hex_tile_map (#62)
+- *(catalog)* Add indicators and tables visuals kpi_sparkline, heat_table, status_scorecard, word_cloud (#63)
+- *(catalog)* Add science, AI, and assessment catalog visuals (items 105 to 114) (#64)
+
 ### 🐛 Bug Fixes
 
+- *(diagrams,sets)* Apply ReportPalette fontFamily + Thai fallback and realistic diagram fixtures (#60)
+- *(sets)* Non-overlapping Venn/Euler outer labels, Euler disjointness, UpSet intersections (#61)
+- *(catalog)* Compute science curves, fix KPI regression, add Natural Earth maps
+- *(charts)* Equirectangular map projection, region names, and exact science assertions (#62, #64)
+- *(charts)* Ensure C12 map label contrast, single-class ROC unavailability, and C8 missing-data omission (#62, #64)
 - *(table)* Align header columns with scaled rows
-- *(charts)* Keep localized headings and table controls readable on narrow cards
+- Wrap chart headers when localized content needs room
+- *(charts)* Integrate responsive report headers
+- *(charts)* Fit category labels to available slots
+- *(charts)* Apply label thinning once
+- *(charts)* Integrate available category label widths (#3)
+
+### 📚 Documentation
+
+- *(changelog)* Record table column alignment fix
+- *(changelog)* Record responsive chart header correction
+
+### 🎨 Styling
+
+- *(charts)* Format touched chart files
+- *(charts)* Brace guarded returns
 
 ### 🧪 Testing
 
 - Refresh table geometry goldens
-- Cover localized headings, larger text and themed controls; capture complete narrow cards
+- *(goldens)* Update category label layouts
 
 ## [0.2.0] - 2026-11-20
 
