@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:reports_view/reports_view.dart';
@@ -1010,6 +1011,7 @@ Future<void> _pumpAndGolden(
   required String dimField,
   required int count,
   required bool twoMeasures,
+  bool captureFullCard = false,
 }) async {
   for (final locale in const [Locale('en'), Locale('pt', 'BR'), Locale('th')]) {
     final tag = locale.toLanguageTag();
@@ -1057,7 +1059,14 @@ Future<void> _pumpAndGolden(
         'value': twoMeasures ? ['v1', 'v2'] : ['v1'],
       },
     );
+    final chart = VisualChooser.buildTemplate(
+      page: page,
+      template: tpl,
+      binding: binding,
+      title: _localizedTitle(tag, id),
+    );
     final key = UniqueKey();
+    final fullCardCapture = captureFullCard && tag == 'pt-BR';
     await tester.pumpWidget(
       MaterialApp(
         theme: _palette.toTheme(Brightness.light),
@@ -1066,21 +1075,23 @@ Future<void> _pumpAndGolden(
             context: context,
             locale: locale,
             child: Scaffold(
-              body: RepaintBoundary(
-                key: key,
-                child: SizedBox(
-                  width: 480,
-                  height: 360,
-                  child: SingleChildScrollView(
-                    child: VisualChooser.buildTemplate(
-                      page: page,
-                      template: tpl,
-                      binding: binding,
-                      title: _localizedTitle(tag, id),
+              body: fullCardCapture
+                  ? SingleChildScrollView(
+                      child: Center(
+                        child: RepaintBoundary(
+                          key: key,
+                          child: SizedBox(width: 480, child: chart),
+                        ),
+                      ),
+                    )
+                  : RepaintBoundary(
+                      key: key,
+                      child: SizedBox(
+                        width: 480,
+                        height: 360,
+                        child: SingleChildScrollView(child: chart),
+                      ),
                     ),
-                  ),
-                ),
-              ),
             ),
           ),
         ),
@@ -1090,6 +1101,28 @@ Future<void> _pumpAndGolden(
       await tester.pumpAndSettle();
     } else {
       await tester.pump();
+    }
+    if (fullCardCapture) {
+      final expectedTitle = _localizedTitle(tag, id);
+      final titleFinder = find.text(expectedTitle);
+      expect(titleFinder, findsOneWidget);
+      final titleParagraph = tester.renderObject<RenderParagraph>(titleFinder);
+      expect(titleParagraph.text.toPlainText(), expectedTitle);
+      expect(titleParagraph.didExceedMaxLines, isFalse);
+
+      final cardRect = tester.getRect(find.byType(ChartFrame));
+      final captureRect = tester.getRect(find.byKey(key));
+      final footerFinder = find.text('Atualizado: 1700000000 (UTC)');
+      expect(footerFinder, findsOneWidget);
+      final footerRect = tester.getRect(footerFinder);
+      expect(cardRect.left, greaterThanOrEqualTo(captureRect.left));
+      expect(cardRect.top, greaterThanOrEqualTo(captureRect.top));
+      expect(cardRect.right, lessThanOrEqualTo(captureRect.right));
+      expect(cardRect.bottom, lessThanOrEqualTo(captureRect.bottom));
+      expect(footerRect.left, greaterThanOrEqualTo(cardRect.left));
+      expect(footerRect.top, greaterThanOrEqualTo(cardRect.top));
+      expect(footerRect.right, lessThanOrEqualTo(cardRect.right));
+      expect(footerRect.bottom, lessThanOrEqualTo(cardRect.bottom));
     }
     await expectLater(
       find.byKey(key),
@@ -1269,6 +1302,7 @@ void main() {
         dimField: 'cat',
         count: 6,
         twoMeasures: twoMeasureComparison.contains(id),
+        captureFullCard: id == 'parallel_coordinates',
       );
     });
   }
@@ -1314,6 +1348,7 @@ void main() {
         dimField: 'cohort',
         count: 8,
         twoMeasures: false,
+        captureFullCard: id == 'population_pyramid',
       );
     });
   }
@@ -1344,6 +1379,7 @@ void main() {
         dimField: 'item',
         count: 6,
         twoMeasures: false,
+        captureFullCard: id == 'architecture_diagram',
       );
     });
   }
@@ -1425,17 +1461,18 @@ void main() {
           theme: pal.toTheme(brightness),
           home: Scaffold(
             backgroundColor: pal.canvas,
-            body: RepaintBoundary(
-              key: key,
-              child: SizedBox(
-                width: 360,
-                height: 360,
-                child: SingleChildScrollView(
-                  child: VisualChooser.buildTemplate(
-                    page: page,
-                    template: tpl,
-                    binding: binding,
-                    title: _localizedTitle('en', 'choropleth'),
+            body: SingleChildScrollView(
+              child: Center(
+                child: RepaintBoundary(
+                  key: key,
+                  child: SizedBox(
+                    width: 360,
+                    child: VisualChooser.buildTemplate(
+                      page: page,
+                      template: tpl,
+                      binding: binding,
+                      title: _localizedTitle('en', 'choropleth'),
+                    ),
                   ),
                 ),
               ),
@@ -1444,6 +1481,44 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      final frameFinder = find.byType(ChartFrame);
+      final geoSummary = find.byWidgetPredicate(
+        (widget) =>
+            widget is Semantics &&
+            (widget.properties.label?.contains(naturalEarthAttribution) ??
+                false),
+      );
+      final mapCanvas = find
+          .descendant(of: geoSummary, matching: find.byType(CustomPaint))
+          .first;
+      expect(frameFinder, findsOneWidget);
+      expect(geoSummary, findsOneWidget);
+      expect(mapCanvas, findsOneWidget);
+      expect(find.text('Period unavailable'), findsOneWidget);
+      expect(find.text('Last update unavailable'), findsOneWidget);
+      final frameRect = tester.getRect(frameFinder);
+      final mapRect = tester.getRect(mapCanvas);
+      final footerRect = tester.getRect(find.text('Last update unavailable'));
+      expect(
+        frameRect.contains(mapRect.topLeft),
+        isTrue,
+        reason: 'frame=$frameRect map=$mapRect',
+      );
+      expect(
+        frameRect.contains(mapRect.bottomRight),
+        isTrue,
+        reason: 'frame=$frameRect map=$mapRect',
+      );
+      expect(
+        frameRect.contains(footerRect.topLeft),
+        isTrue,
+        reason: 'frame=$frameRect footer=$footerRect',
+      );
+      expect(
+        frameRect.contains(footerRect.bottomRight),
+        isTrue,
+        reason: 'frame=$frameRect footer=$footerRect',
+      );
       await expectLater(
         find.byKey(key),
         matchesGoldenFile('goldens/geo/$name.png'),
