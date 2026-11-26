@@ -38,11 +38,15 @@ class _SeriesLineChartState extends State<SeriesLineChart> {
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
+    final numberLanguage = numberLanguageFor(context);
     final rows = widget.page.rows;
     final measures = widget.measures;
     final numericX = widget.numericX;
     final x = widget.x;
-    final labels = [for (final r in rows) ChartParts.xLabel(r[x.name], x)];
+    final labels = [
+      for (final r in rows)
+        ChartParts.xLabel(r[x.name], x, language: numberLanguage),
+    ];
     double xv(int i) => numericX ? (asDouble(rows[i][x.name]) ?? i.toDouble()) : i.toDouble();
     Color colorOf(int m) => p.seriesAt(m);
     final bars = [
@@ -66,7 +70,9 @@ class _SeriesLineChartState extends State<SeriesLineChart> {
           belowBarData: BarAreaData(show: measures.length == 1, color: colorOf(m).withValues(alpha: 0.10)),
         ),
     ];
-    String xText(double v) => numericX ? '${labelWithUnit(x)} ${compactNumber(v)}' : labels[v.round().clamp(0, labels.length - 1)];
+    String xText(double v) => numericX
+        ? '${labelWithUnit(x)} ${compactNumber(v, language: numberLanguage)}'
+        : labels[v.round().clamp(0, labels.length - 1)];
     final range = widget.range ??
         YRange.of([
           for (final m in measures)
@@ -84,7 +90,9 @@ class _SeriesLineChartState extends State<SeriesLineChart> {
             borderData: FlBorderData(show: false),
             lineBarsData: bars,
             titlesData: FlTitlesData(
-              leftTitles: showAxis ? ChartParts.leftTitles(p) : ChartParts.none,
+              leftTitles: showAxis
+                  ? ChartParts.leftTitles(p, numberLanguage: numberLanguage)
+                  : ChartParts.none,
               bottomTitles: numericX
                   ? AxisTitles(
                       sideTitles: SideTitles(
@@ -92,7 +100,7 @@ class _SeriesLineChartState extends State<SeriesLineChart> {
                         reservedSize: 28,
                         getTitlesWidget: (v, meta) => SideTitleWidget(
                           meta: meta,
-                          child: Text(compactNumber(v), style: TextStyle(fontSize: 10.5, color: p.textMuted)),
+                          child: Text(compactNumber(v, language: numberLanguage), style: TextStyle(fontSize: 10.5, color: p.textMuted)),
                         ),
                       ),
                     )
@@ -122,7 +130,7 @@ class _SeriesLineChartState extends State<SeriesLineChart> {
                       s == sorted.first
                           ? LineTooltipItem('${xText(s.x)}\n', ChartTooltip.base(p), children: [
                               for (final o in sorted) ...[
-                                ...ChartTooltip.row(p, valueWithUnit(o.y, measures[o.barIndex]), measures[o.barIndex].label),
+                                ...ChartTooltip.row(p, valueWithUnit(o.y, measures[o.barIndex], language: numberLanguage), measures[o.barIndex].label),
                                 if (o != sorted.last) const TextSpan(text: '\n'),
                               ],
                             ])

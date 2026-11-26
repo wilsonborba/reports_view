@@ -100,12 +100,11 @@ class RelationCatalogChart extends StatelessWidget {
   }) {
     final counts = <(int, int), int>{};
     for (final (ux, uy) in unitPoints) {
-      final r = ((1.0 - uy.clamp(0.0, 1.0)) * (rows - 1e-6))
-          .floor()
-          .clamp(0, rows - 1);
-      final c = (ux.clamp(0.0, 1.0) * (cols - 1e-6))
-          .floor()
-          .clamp(0, cols - 1);
+      final r = ((1.0 - uy.clamp(0.0, 1.0)) * (rows - 1e-6)).floor().clamp(
+        0,
+        rows - 1,
+      );
+      final c = (ux.clamp(0.0, 1.0) * (cols - 1e-6)).floor().clamp(0, cols - 1);
       counts[(c, r)] = (counts[(c, r)] ?? 0) + 1;
     }
     return counts;
@@ -172,9 +171,11 @@ class RelationCatalogChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
+    final numberLanguage = numberLanguageFor(context);
     if (page.rows.isEmpty) return const SizedBox.shrink();
     final labels = [
-      for (final r in page.rows) ChartParts.xLabel(r[label.name], label),
+      for (final r in page.rows)
+        ChartParts.xLabel(r[label.name], label, language: numberLanguage),
     ];
     final allMeasures = measures.isNotEmpty
         ? measures
@@ -203,6 +204,7 @@ class RelationCatalogChart extends StatelessWidget {
                 yMeasure: yMeasure,
                 sizeMeasure: sizeMeasure,
                 measures: allMeasures,
+                numberLanguage: numberLanguage,
               ),
             );
           },
@@ -221,6 +223,7 @@ class _RelationPainter extends CustomPainter {
   final FieldInfo yMeasure;
   final FieldInfo? sizeMeasure;
   final List<FieldInfo> measures;
+  final String numberLanguage;
 
   _RelationPainter({
     required this.palette,
@@ -231,6 +234,7 @@ class _RelationPainter extends CustomPainter {
     required this.yMeasure,
     required this.sizeMeasure,
     required this.measures,
+    required this.numberLanguage,
   });
 
   double _num(Map<String, dynamic> r, FieldInfo f) {
@@ -341,12 +345,12 @@ class _RelationPainter extends CustomPainter {
       final py = plot.bottom - ((ys[i] - minY) / spanY) * plot.height;
       final r = bubble
           ? (5.0 +
-                11.0 *
-                    ((sizeMeasure != null
-                            ? _num(rows[i], sizeMeasure!).abs()
-                            : ys[i].abs()) /
-                        math.max(1.0, maxY.abs())))
-              .clamp(4.0, 18.0)
+                    11.0 *
+                        ((sizeMeasure != null
+                                ? _num(rows[i], sizeMeasure!).abs()
+                                : ys[i].abs()) /
+                            math.max(1.0, maxY.abs())))
+                .clamp(4.0, 18.0)
           : 4.5;
       canvas.drawCircle(
         Offset(px, py),
@@ -357,10 +361,14 @@ class _RelationPainter extends CustomPainter {
               .withValues(alpha: 0.78),
       );
     }
-    _drawText(canvas, numberText(minX, 1), Offset(plot.left, plot.bottom + 4));
     _drawText(
       canvas,
-      numberText(maxX, 1),
+      numberText(minX, 1, language: numberLanguage),
+      Offset(plot.left, plot.bottom + 4),
+    );
+    _drawText(
+      canvas,
+      numberText(maxX, 1, language: numberLanguage),
       Offset(plot.right - 34, plot.bottom + 4),
     );
   }
@@ -407,7 +415,7 @@ class _RelationPainter extends CustomPainter {
         );
         _drawText(
           canvas,
-          numberText(v, 0),
+          numberText(v, 0, language: numberLanguage),
           rect.topLeft + const Offset(4, 4),
           maxWidth: cw - 8,
           color: t > 0.55 ? palette.onAccent : palette.textPrimary,
@@ -415,14 +423,14 @@ class _RelationPainter extends CustomPainter {
       }
       _drawText(
         canvas,
-        ChartParts.xLabel(rows[r][label.name], label),
+        ChartParts.xLabel(rows[r][label.name], label, language: numberLanguage),
         Offset(2, plot.top + r * ch + ch * 0.25),
         maxWidth: 50,
       );
     }
     _drawText(
       canvas,
-      '${numberText(minV, 0)} .. ${numberText(maxV, 0)}',
+      '${numberText(minV, 0, language: numberLanguage)} .. ${numberText(maxV, 0, language: numberLanguage)}',
       Offset(plot.left, plot.bottom + 4),
       maxWidth: 140,
     );
@@ -431,7 +439,10 @@ class _RelationPainter extends CustomPainter {
   void _paintCorrelationMatrix(Canvas canvas, Size size) {
     final cols = measures.take(4).toList();
     final colNames = [for (final m in cols) m.name];
-    final matrix = RelationCatalogChart.computeCorrelationMatrix(rows, colNames);
+    final matrix = RelationCatalogChart.computeCorrelationMatrix(
+      rows,
+      colNames,
+    );
     final k = cols.length;
     final plot = Rect.fromLTWH(52, 20, size.width - 68, size.height - 44);
     final cw = plot.width / k;
@@ -466,7 +477,7 @@ class _RelationPainter extends CustomPainter {
         canvas.drawRect(rect, Paint()..color = color);
         _drawText(
           canvas,
-          v.toStringAsFixed(2),
+          numberText(v, 2, language: numberLanguage),
           rect.topLeft + const Offset(4, 4),
           maxWidth: cw - 8,
           color: v.abs() > 0.55 ? palette.onAccent : palette.textPrimary,
@@ -475,7 +486,7 @@ class _RelationPainter extends CustomPainter {
     }
     _drawText(
       canvas,
-      'r: -1.0 .. +1.0',
+      'r: ${numberText(-1, 1, language: numberLanguage)} .. +${numberText(1, 1, language: numberLanguage)}',
       Offset(plot.left, plot.bottom + 4),
       maxWidth: 140,
     );
@@ -519,7 +530,10 @@ class _RelationPainter extends CustomPainter {
       hex.close();
       canvas.drawPath(
         hex,
-        Paint()..color = palette.seriesAt(0).withValues(alpha: 0.2 + intensity * 0.75),
+        Paint()
+          ..color = palette
+              .seriesAt(0)
+              .withValues(alpha: 0.2 + intensity * 0.75),
       );
     }
     _drawText(
@@ -562,7 +576,9 @@ class _RelationPainter extends CustomPainter {
         canvas.drawRect(
           Rect.fromLTWH(plot.left + gx * cw, plot.top + gy * ch, cw, ch),
           Paint()
-            ..color = palette.seriesAt(0).withValues(alpha: 0.12 + level * 0.18),
+            ..color = palette
+                .seriesAt(0)
+                .withValues(alpha: 0.12 + level * 0.18),
         );
       }
     }
@@ -660,9 +676,7 @@ class _RelationPainter extends CustomPainter {
     final fB = measures.length > 1 ? measures[1] : yMeasure;
     final rawC = measures.length > 2 ? measures[2] : sizeMeasure;
     final hasThird =
-        rawC != null &&
-        rawC.name != xMeasure.name &&
-        rawC.name != fB.name;
+        rawC != null && rawC.name != xMeasure.name && rawC.name != fB.name;
     final cornerLabels = RelationCatalogChart.ternaryCornerLabels(
       xMeasure,
       fB,
@@ -693,5 +707,8 @@ class _RelationPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _RelationPainter old) =>
-      old.visual != visual || old.rows != rows || old.palette != palette;
+      old.visual != visual ||
+      old.rows != rows ||
+      old.palette != palette ||
+      old.numberLanguage != numberLanguage;
 }

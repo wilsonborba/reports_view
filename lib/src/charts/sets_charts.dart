@@ -161,6 +161,7 @@ class SetsCatalogChart extends StatelessWidget {
     Map<String, double> setTotals,
     ReportPalette palette, {
     required bool euler,
+    String numberLanguage = 'en',
   }) {
     final entries = setTotals.entries.take(3).toList();
     final n = entries.length;
@@ -280,7 +281,7 @@ class SetsCatalogChart extends StatelessWidget {
     final labelTexts = <String>[];
 
     for (var i = 0; i < n; i++) {
-      final text = '${entries[i].key} (${entries[i].value.toStringAsFixed(0)})';
+      final text = '${entries[i].key} (${numberText(entries[i].value, 0, language: numberLanguage)})';
       labelTexts.add(text);
       final tp = _layoutLabel(text, palette, maxWidth: math.max(80.0, size.width * 0.34));
       var dir = centers[i] - centroid;
@@ -340,6 +341,7 @@ class SetsCatalogChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
+    final numberLanguage = numberLanguageFor(context);
     if (page.rows.isEmpty) return const SizedBox.shrink();
     final intersections = extractIntersections(page.rows, label, measure);
     final setTotals = computeSetTotals(intersections);
@@ -357,6 +359,7 @@ class SetsCatalogChart extends StatelessWidget {
               intersections: intersections,
               setTotals: setTotals,
               palette: p,
+              numberLanguage: numberLanguage,
             ),
           ),
         ),
@@ -370,12 +373,14 @@ class _SetsPainter extends CustomPainter {
   final List<SetIntersection> intersections;
   final Map<String, double> setTotals;
   final ReportPalette palette;
+  final String numberLanguage;
 
   const _SetsPainter({
     required this.visual,
     required this.intersections,
     required this.setTotals,
     required this.palette,
+    required this.numberLanguage,
   });
 
   void _drawText(
@@ -438,6 +443,7 @@ class _SetsPainter extends CustomPainter {
       setTotals,
       palette,
       euler: euler,
+      numberLanguage: numberLanguage,
     );
     final maxTotal = circles.fold<double>(
       1.0,
@@ -499,7 +505,7 @@ class _SetsPainter extends CustomPainter {
       );
       _drawText(
         canvas,
-        cols[j].count.toStringAsFixed(0),
+        numberText(cols[j].count, 0, language: numberLanguage),
         Offset(x + bw / 2, barTop - 8),
         maxWidth: colW,
         fontSize: 8.5,
@@ -550,5 +556,8 @@ class _SetsPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _SetsPainter old) =>
-      old.visual != visual || old.intersections != intersections || old.palette != palette;
+      old.visual != visual ||
+      old.intersections != intersections ||
+      old.palette != palette ||
+      old.numberLanguage != numberLanguage;
 }

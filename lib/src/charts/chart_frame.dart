@@ -58,7 +58,11 @@ class ChartFrame extends StatefulWidget {
     );
   }
 
-  static String semanticsSummary(DatasetPage page, {String? title}) {
+  static String semanticsSummary(
+    DatasetPage page, {
+    String? title,
+    String? numberLanguage,
+  }) {
     final resolvedTitle = (title ?? page.descriptor.title).trim();
     final label = resolvedTitle.isEmpty ? page.descriptor.datasetId : resolvedTitle;
     final count = page.rows.length;
@@ -77,7 +81,7 @@ class ChartFrame extends StatefulWidget {
       if (v < lo) lo = v;
       if (v > hi) hi = v;
     }
-    return '$label, $count rows, ${m.label} from ${valueWithUnit(lo, m)} to ${valueWithUnit(hi, m)}';
+    return '$label, $count rows, ${m.label} from ${valueWithUnit(lo, m, language: numberLanguage)} to ${valueWithUnit(hi, m, language: numberLanguage)}';
   }
 
   @override
@@ -437,12 +441,17 @@ class _ChartFrameState extends State<ChartFrame> {
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
+    final numberLanguage = numberLanguageFor(context);
     final resolvedTitle = (title ?? page.descriptor.title).trim();
     final resolvedSubtitle = (subtitle ?? page.descriptor.description).trim();
     final tier = _tierLabel(context);
 
     return Semantics(
-      label: ChartFrame.semanticsSummary(page, title: title),
+      label: ChartFrame.semanticsSummary(
+        page,
+        title: title,
+        numberLanguage: numberLanguage,
+      ),
       container: true,
       child: Container(
         decoration: BoxDecoration(

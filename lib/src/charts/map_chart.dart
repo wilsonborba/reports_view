@@ -92,6 +92,7 @@ class _SpatialMapState extends State<SpatialMap> with SingleTickerProviderStateM
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
+    final numberLanguage = numberLanguageFor(context);
     final w = widget;
     final lat = SpatialMap._fieldOfType(w.points.descriptor, 'latitude')!;
     final lon = SpatialMap._fieldOfType(w.points.descriptor, 'longitude')!;
@@ -117,9 +118,9 @@ class _SpatialMapState extends State<SpatialMap> with SingleTickerProviderStateM
             decoration: BoxDecoration(color: p.textPrimary, borderRadius: BorderRadius.circular(ReportPalette.controlRadius)),
             child: Text.rich(
               TextSpan(style: ChartTooltip.base(p), children: [
-                TextSpan(text: '${valueText(r[w.label.name], w.label)}\n', style: const TextStyle(fontWeight: FontWeight.w700)),
-                ...ChartTooltip.row(p, valueWithUnit(r[w.value.name], w.value), w.value.label),
-                if (w.share != null) ...[const TextSpan(text: '\n'), ...ChartTooltip.row(p, valueText(r[w.share!.name], w.share), w.share!.label)],
+                TextSpan(text: '${valueText(r[w.label.name], w.label, language: numberLanguage)}\n', style: const TextStyle(fontWeight: FontWeight.w700)),
+                ...ChartTooltip.row(p, valueWithUnit(r[w.value.name], w.value, language: numberLanguage), w.value.label),
+                if (w.share != null) ...[const TextSpan(text: '\n'), ...ChartTooltip.row(p, valueText(r[w.share!.name], w.share, language: numberLanguage), w.share!.label)],
               ]),
             ),
           ),
@@ -204,10 +205,10 @@ class _SpatialMapState extends State<SpatialMap> with SingleTickerProviderStateM
                 const SizedBox(width: 10),
                 Expanded(
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(valueText(top[i][w.label.name], w.label),
+                    Text(valueText(top[i][w.label.name], w.label, language: numberLanguage),
                         maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: p.textPrimary)),
                     Text(
-                      [valueWithUnit(top[i][w.value.name], w.value), if (w.share != null) valueText(top[i][w.share!.name], w.share)].join('  '),
+                      [valueWithUnit(top[i][w.value.name], w.value, language: numberLanguage), if (w.share != null) valueText(top[i][w.share!.name], w.share, language: numberLanguage)].join('  '),
                       style: TextStyle(fontSize: 11.5, color: p.textMuted),
                     ),
                   ]),

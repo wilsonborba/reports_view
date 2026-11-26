@@ -320,6 +320,37 @@ void main() {
     },
   );
 
+  testWidgets('KPI sparkline delta uses the host locale decimal separator', (
+    tester,
+  ) async {
+    final page = _indicatorPage('kpi_sparkline');
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: _palette.toTheme(Brightness.light),
+        home: Scaffold(
+          body: Localizations(
+            locale: const Locale('pt', 'BR'),
+            delegates: const [DefaultWidgetsLocalizations.delegate],
+            child: SizedBox(
+              width: 440,
+              height: 180,
+              child: IndicatorTableChart(
+                page: page,
+                visual: Visual.kpiSparkline,
+                dimension: page.descriptor.fields.first,
+                measures: [page.descriptor.fields.last],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('+5,9%'), findsOneWidget);
+    expect(find.text('+5.9%'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   test('word_cloud layout places non-overlapping words ordered by weight', () {
     final page = _indicatorPage('word_cloud');
     final placed = IndicatorTableChart.layoutWords(

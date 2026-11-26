@@ -52,11 +52,16 @@ class IndicatorTableChart extends StatelessWidget {
     List<Map<String, dynamic>> rows,
     FieldInfo labelField,
     FieldInfo valueField,
-    ReportPalette palette,
-  ) {
+    ReportPalette palette, {
+    String? numberLanguage,
+  }) {
     final entries = <(String, double)>[];
     for (final r in rows.take(maxItems)) {
-      final w = ChartParts.xLabel(r[labelField.name], labelField).trim();
+      final w = ChartParts.xLabel(
+        r[labelField.name],
+        labelField,
+        language: numberLanguage,
+      ).trim();
       final v = (measureValue(r[valueField.name], valueField) ?? 0.0).abs();
       if (w.isNotEmpty) entries.add((w, v));
     }
@@ -127,22 +132,27 @@ class IndicatorTableChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
+    final numberLanguage = numberLanguageFor(context);
     if (page.rows.isEmpty || measures.isEmpty) return const SizedBox.shrink();
     final primary = measures.first;
     final summary = '${visual.name}: ${primary.label} (${page.rows.length})';
     return Semantics(
       label: summary,
       child: switch (visual) {
-        Visual.kpiSparkline => _buildKpiSparkline(p, primary),
-        Visual.heatTable => _buildHeatTable(p),
-        Visual.statusScorecard => _buildScorecard(p),
-        Visual.wordCloud => _buildWordCloud(p, primary),
+        Visual.kpiSparkline => _buildKpiSparkline(p, primary, numberLanguage),
+        Visual.heatTable => _buildHeatTable(p, numberLanguage),
+        Visual.statusScorecard => _buildScorecard(p, numberLanguage),
+        Visual.wordCloud => _buildWordCloud(p, primary, numberLanguage),
         _ => const SizedBox.shrink(),
       },
     );
   }
 
-  Widget _buildKpiSparkline(ReportPalette p, FieldInfo primary) {
+  Widget _buildKpiSparkline(
+    ReportPalette p,
+    FieldInfo primary,
+    String numberLanguage,
+  ) {
     final vals = [
       for (final r in page.rows.take(maxItems))
         measureValue(r[primary.name], primary) ?? 0.0,
@@ -156,7 +166,7 @@ class IndicatorTableChart extends StatelessWidget {
         ? p.textMuted
         : (isUp ? p.positive : p.negative);
     final sign = delta > 0 ? '+' : '';
-    final valStr = valueText(current, primary);
+    final valStr = valueText(current, primary, language: numberLanguage);
 
     return Container(
       height: math.min(height, 150),
@@ -193,7 +203,7 @@ class IndicatorTableChart extends StatelessWidget {
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
-                  '$sign${pct.toStringAsFixed(1)}%',
+                  '$sign${numberText(pct, 1, language: numberLanguage)}%',
                   style: TextStyle(
                     color: deltaColor,
                     fontSize: 11,
@@ -229,7 +239,7 @@ class IndicatorTableChart extends StatelessWidget {
     );
   }
 
-  Widget _buildHeatTable(ReportPalette p) {
+  Widget _buildHeatTable(ReportPalette p, String numberLanguage) {
     final rows = page.rows.take(8).toList();
     final dim = dimension;
     final cols = measures.take(3).toList();
@@ -307,7 +317,11 @@ class IndicatorTableChart extends StatelessWidget {
                     Expanded(
                       flex: 2,
                       child: Text(
-                        ChartParts.xLabel(rows[i][dim.name], dim),
+                        ChartParts.xLabel(
+                          rows[i][dim.name],
+                          dim,
+                          language: numberLanguage,
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -329,6 +343,7 @@ class IndicatorTableChart extends StatelessWidget {
                           formatted: valueText(
                             measureValue(rows[i][m.name], m) ?? 0.0,
                             m,
+                            language: numberLanguage,
                           ),
                           palette: p,
                         ),
@@ -342,7 +357,7 @@ class IndicatorTableChart extends StatelessWidget {
     );
   }
 
-  Widget _buildScorecard(ReportPalette p) {
+  Widget _buildScorecard(ReportPalette p, String numberLanguage) {
     final rows = page.rows.take(8).toList();
     final dim = dimension;
     final cols = measures.take(3).toList();
@@ -419,7 +434,11 @@ class IndicatorTableChart extends StatelessWidget {
                     Expanded(
                       flex: 2,
                       child: Text(
-                        ChartParts.xLabel(rows[i][dim.name], dim),
+                        ChartParts.xLabel(
+                          rows[i][dim.name],
+                          dim,
+                          language: numberLanguage,
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -440,6 +459,7 @@ class IndicatorTableChart extends StatelessWidget {
                           formatted: valueText(
                             measureValue(rows[i][m.name], m) ?? 0.0,
                             m,
+                            language: numberLanguage,
                           ),
                           palette: p,
                         ),
@@ -453,7 +473,11 @@ class IndicatorTableChart extends StatelessWidget {
     );
   }
 
-  Widget _buildWordCloud(ReportPalette p, FieldInfo primary) {
+  Widget _buildWordCloud(
+    ReportPalette p,
+    FieldInfo primary,
+    String numberLanguage,
+  ) {
     final dim = dimension ?? primary;
     return SizedBox(
       height: height,
@@ -467,6 +491,7 @@ class IndicatorTableChart extends StatelessWidget {
               dim,
               primary,
               p,
+              numberLanguage: numberLanguage,
             ),
           ),
         ),

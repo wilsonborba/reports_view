@@ -34,6 +34,7 @@ class _DonutChartState extends State<DonutChart> {
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
+    final numberLanguage = numberLanguageFor(context);
     final rows = widget.page.rows;
     final label = widget.label, value = widget.value;
     final colors = SeriesColorScope.of(context);
@@ -47,13 +48,13 @@ class _DonutChartState extends State<DonutChart> {
     final kept = segments.where((k) => k != otherKey).toSet();
     double segValue(String k) => k == otherKey ? keys.where((x) => !kept.contains(x)).fold<double>(0, (s, x) => s + totals[x]!) : totals[k]!;
     Color colorOf(String k) => k == otherKey ? p.other : colors.color(p, label.name, k, keys.indexOf(k));
-    String nameOf(String k) => k == otherKey ? context.tr('other') : valueText(rows[keys.indexOf(k)][label.name], label);
+    String nameOf(String k) => k == otherKey ? context.tr('other') : valueText(rows[keys.indexOf(k)][label.name], label, language: numberLanguage);
     // A list row of a folded category highlights the Other segment.
     String segmentOf(String k) => kept.contains(k) ? k : otherKey;
     final hoverSeg = _hover == null ? null : segmentOf(_hover!);
     final center = hoverSeg == null
-        ? (valueText(total, value), value.unit ?? '', '')
-        : (valueText(segValue(hoverSeg), value), nameOf(hoverSeg), total > 0 ? '${numberText(segValue(hoverSeg) / total * 100, 1)}%' : '');
+        ? (valueText(total, value, language: numberLanguage), value.unit ?? '', '')
+        : (valueText(segValue(hoverSeg), value, language: numberLanguage), nameOf(hoverSeg), total > 0 ? '${numberText(segValue(hoverSeg) / total * 100, 1, language: numberLanguage)}%' : '');
 
     final donut = SizedBox(
       width: 200,
@@ -121,7 +122,7 @@ class _DonutChartState extends State<DonutChart> {
                   const SizedBox(width: 8),
                   Expanded(
                     flex: 5,
-                    child: Text(valueText(rows[i][label.name], label),
+                    child: Text(valueText(rows[i][label.name], label, language: numberLanguage),
                         maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12.5, color: p.textPrimary)),
                   ),
                   Expanded(
@@ -142,7 +143,7 @@ class _DonutChartState extends State<DonutChart> {
                   SizedBox(
                     width: 130,
                     child: Text(
-                      '${valueText(rows[i][value.name], value)}  ${widget.share != null ? valueText(rows[i][widget.share!.name], widget.share) : (total > 0 ? '${numberText(totals[keys[i]]! / total * 100, 1)}%' : '')}',
+                      '${valueText(rows[i][value.name], value, language: numberLanguage)}  ${widget.share != null ? valueText(rows[i][widget.share!.name], widget.share, language: numberLanguage) : (total > 0 ? '${numberText(totals[keys[i]]! / total * 100, 1, language: numberLanguage)}%' : '')}',
                       textAlign: TextAlign.right,
                       style: TextStyle(fontSize: 12, fontFeatures: const [FontFeature.tabularFigures()], color: p.textPrimary),
                     ),

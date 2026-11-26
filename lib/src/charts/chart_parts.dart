@@ -58,6 +58,7 @@ class ChartParts {
     ReportPalette p, {
     double reserved = 44,
     String? axisTitle,
+    String? numberLanguage,
   }) => AxisTitles(
     axisNameWidget: axisTitle == null || axisTitle.isEmpty
         ? null
@@ -74,7 +75,7 @@ class ChartParts {
       getTitlesWidget: (v, meta) => SideTitleWidget(
         meta: meta,
         child: Text(
-          compactNumber(v),
+          compactNumber(v, language: numberLanguage),
           style: TextStyle(fontSize: 10.5, color: p.textMuted),
         ),
       ),
@@ -164,11 +165,11 @@ class ChartParts {
   );
 
   /// Short label for an x value (dates show month-day).
-  static String xLabel(dynamic v, FieldInfo f) {
+  static String xLabel(dynamic v, FieldInfo f, {String? language}) {
     if (f.type == 'date' && v is String && v.length >= 10) {
       return shortDateText(v);
     }
-    return valueText(v, f);
+    return valueText(v, f, language: language);
   }
 }
 
@@ -393,7 +394,11 @@ class _ScrollableXState extends State<ScrollableX> {
               ),
             ],
             titlesData: FlTitlesData(
-              leftTitles: ChartParts.leftTitles(p, reserved: widget.axisWidth),
+              leftTitles: ChartParts.leftTitles(
+                p,
+                reserved: widget.axisWidth,
+                numberLanguage: numberLanguageFor(context),
+              ),
               bottomTitles: AxisTitles(
                 sideTitles: SideTitles(
                   showTitles: true,

@@ -195,6 +195,7 @@ class DiagramCatalogChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
+    final numberLanguage = numberLanguageFor(context);
     if (page.rows.isEmpty || dims.isEmpty) return const SizedBox.shrink();
     final edges = extractEdges(page.rows, dims, measure);
     final nodes = collectNodes(edges);
@@ -213,6 +214,7 @@ class DiagramCatalogChart extends StatelessWidget {
               nodes: nodes,
               fields: page.descriptor.fields,
               palette: p,
+              numberLanguage: numberLanguage,
             ),
           ),
         ),
@@ -227,6 +229,7 @@ class _DiagramPainter extends CustomPainter {
   final List<String> nodes;
   final List<FieldInfo> fields;
   final ReportPalette palette;
+  final String numberLanguage;
 
   const _DiagramPainter({
     required this.visual,
@@ -234,6 +237,7 @@ class _DiagramPainter extends CustomPainter {
     required this.nodes,
     required this.fields,
     required this.palette,
+    required this.numberLanguage,
   });
 
   double get _maxVal {
@@ -651,7 +655,7 @@ class _DiagramPainter extends CustomPainter {
       );
       _drawText(
         canvas,
-        e.value.toStringAsFixed(0),
+        numberText(e.value, 0, language: numberLanguage),
         Offset((xs[si] + xs[ti]) / 2, y - 10),
         maxWidth: 50,
         fontSize: 9,
@@ -965,7 +969,7 @@ class _DiagramPainter extends CustomPainter {
       );
       _drawText(
         canvas,
-        '${entities[i]} (${(weights[entities[i]] ?? 0).toStringAsFixed(0)})',
+        '${entities[i]} (${numberText(weights[entities[i]] ?? 0, 0, language: numberLanguage)})',
         Offset(x + 6, 40),
         maxWidth: w - 12,
         color: palette.onAccent,
@@ -1028,5 +1032,8 @@ class _DiagramPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _DiagramPainter old) =>
-      old.visual != visual || old.edges != edges || old.palette != palette;
+      old.visual != visual ||
+      old.edges != edges ||
+      old.palette != palette ||
+      old.numberLanguage != numberLanguage;
 }

@@ -57,9 +57,11 @@ class _VerticalBarChartState extends State<VerticalBarChart> {
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
+    final numberLanguage = numberLanguageFor(context);
     final rows = widget.page.rows;
     final labels = [
-      for (final r in rows) ChartParts.xLabel(r[widget.x.name], widget.x),
+      for (final r in rows)
+        ChartParts.xLabel(r[widget.x.name], widget.x, language: numberLanguage),
     ];
     final color = widget.color ?? p.seriesAt(0);
     final range =
@@ -89,7 +91,11 @@ class _VerticalBarChartState extends State<VerticalBarChart> {
         borderData: FlBorderData(show: false),
         titlesData: FlTitlesData(
           leftTitles: showAxis
-              ? ChartParts.leftTitles(p, reserved: widget.leftReserved)
+              ? ChartParts.leftTitles(
+                  p,
+                  reserved: widget.leftReserved,
+                  numberLanguage: numberLanguage,
+                )
               : ChartParts.none,
           bottomTitles: ChartParts.bottomLabels(
             p,
@@ -123,6 +129,7 @@ class _VerticalBarChartState extends State<VerticalBarChart> {
                 measureValueWithUnit(
                   rows[group.x][widget.measure.name],
                   widget.measure,
+                  language: numberLanguage,
                 ),
                 widget.measure.label,
               ),
@@ -208,6 +215,7 @@ class _StackedBarChartState extends State<StackedBarChart> {
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
+    final numberLanguage = numberLanguageFor(context);
     final page = widget.page,
         x = widget.x,
         category = widget.category,
@@ -243,7 +251,10 @@ class _StackedBarChartState extends State<StackedBarChart> {
       }
     }
     final xKeys = xs.keys.toList();
-    final labels = [for (final k in xKeys) ChartParts.xLabel(xs[k], x)];
+    final labels = [
+      for (final k in xKeys)
+        ChartParts.xLabel(xs[k], x, language: numberLanguage),
+    ];
     Color color(String c) => c == otherKey
         ? p.other
         : colors.color(p, category.name, c, cats.indexOf(c));
@@ -264,7 +275,10 @@ class _StackedBarChartState extends State<StackedBarChart> {
                 gridData: ChartParts.grid(p),
                 borderData: FlBorderData(show: false),
                 titlesData: FlTitlesData(
-                  leftTitles: ChartParts.leftTitles(p),
+                  leftTitles: ChartParts.leftTitles(
+                    p,
+                    numberLanguage: numberLanguage,
+                  ),
                   bottomTitles: ChartParts.bottomLabels(
                     p,
                     labels,
@@ -300,7 +314,11 @@ class _StackedBarChartState extends State<StackedBarChart> {
                           for (final c in rowsOfX) ...[
                             ...ChartTooltip.row(
                               p,
-                              valueWithUnit(values[xk]![c], measure),
+                              valueWithUnit(
+                                values[xk]![c],
+                                measure,
+                                language: numberLanguage,
+                              ),
                               name(c),
                             ),
                             if (c != rowsOfX.last) const TextSpan(text: '\n'),
@@ -402,13 +420,19 @@ class RankingBars extends StatefulWidget {
 class _RankingBarsState extends State<RankingBars> {
   int? _hover;
 
-  String _valueText(Map<String, dynamic> row) => widget.share == null
-      ? valueWithUnit(row[widget.measure.name], widget.measure)
-      : '${valueWithUnit(row[widget.measure.name], widget.measure)}  ${valueWithUnit(row[widget.share!.name], widget.share)}';
+  String _valueText(Map<String, dynamic> row, String numberLanguage) =>
+      widget.share == null
+      ? valueWithUnit(
+          row[widget.measure.name],
+          widget.measure,
+          language: numberLanguage,
+        )
+      : '${valueWithUnit(row[widget.measure.name], widget.measure, language: numberLanguage)}  ${valueWithUnit(row[widget.share!.name], widget.share, language: numberLanguage)}';
 
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
+    final numberLanguage = numberLanguageFor(context);
     final rows = widget.maxItems == null
         ? widget.page.rows
         : widget.page.rows.take(widget.maxItems!).toList();
@@ -417,7 +441,9 @@ class _RankingBarsState extends State<RankingBars> {
     // The value column is as wide as its longest text, so values are never cut.
     final longest = rows.fold<int>(
       0,
-      (m, r) => _valueText(r).length > m ? _valueText(r).length : m,
+      (m, r) => _valueText(r, numberLanguage).length > m
+          ? _valueText(r, numberLanguage).length
+          : m,
     );
     final valueWidth = (longest * 7.2 + 8).clamp(48.0, 220.0);
     final color = p.seriesAt(0);
@@ -458,12 +484,14 @@ class _RankingBarsState extends State<RankingBars> {
                             message: valueText(
                               rows[i][widget.label.name],
                               widget.label,
+                              language: numberLanguage,
                             ),
                             waitDuration: const Duration(milliseconds: 400),
                             child: Text(
                               valueText(
                                 rows[i][widget.label.name],
                                 widget.label,
+                                language: numberLanguage,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -518,7 +546,7 @@ class _RankingBarsState extends State<RankingBars> {
                         SizedBox(
                           width: valueWidth,
                           child: Text(
-                            _valueText(rows[i]),
+                            _valueText(rows[i], numberLanguage),
                             textAlign: TextAlign.right,
                             maxLines: 1,
                             style: TextStyle(
