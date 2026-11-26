@@ -28,9 +28,11 @@ class PartWholeCatalogChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
+    final numberLanguage = numberLanguageFor(context);
     if (page.rows.isEmpty) return const SizedBox.shrink();
     final labels = [
-      for (final r in page.rows) ChartParts.xLabel(r[label.name], label),
+      for (final r in page.rows)
+        ChartParts.xLabel(r[label.name], label, language: numberLanguage),
     ];
     final summary =
         '${visual.name}: ${labels.take(4).join(', ')} (${page.rows.length})';
@@ -40,11 +42,11 @@ class PartWholeCatalogChart extends StatelessWidget {
       child: SizedBox(
         height: height,
         child: switch (visual) {
-          Visual.meter => _buildMeter(p),
+          Visual.meter => _buildMeter(p, numberLanguage),
           Visual.waffle => _buildWaffle(p),
-          Visual.treemap => _buildTreemap(p),
-          Visual.icicle => _buildIcicle(p),
-          Visual.funnel => _buildFunnel(p),
+          Visual.treemap => _buildTreemap(p, numberLanguage),
+          Visual.icicle => _buildIcicle(p, numberLanguage),
+          Visual.funnel => _buildFunnel(p, numberLanguage),
           _ => CustomPaint(
             painter: _PartWholePainter(
               rows: page.rows,
@@ -67,7 +69,7 @@ class PartWholeCatalogChart extends StatelessWidget {
     return s > 0 ? s : 1.0;
   }
 
-  Widget _buildMeter(ReportPalette p) {
+  Widget _buildMeter(ReportPalette p, String numberLanguage) {
     final total = _total();
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -109,7 +111,11 @@ class PartWholeCatalogChart extends StatelessWidget {
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    ChartParts.xLabel(page.rows[i][label.name], label),
+                    ChartParts.xLabel(
+                      page.rows[i][label.name],
+                      label,
+                      language: numberLanguage,
+                    ),
                     style: TextStyle(fontSize: 11, color: p.textPrimary),
                   ),
                 ],
@@ -149,23 +155,31 @@ class PartWholeCatalogChart extends StatelessWidget {
     );
   }
 
-  Widget _buildTreemap(ReportPalette p) {
+  Widget _buildTreemap(ReportPalette p, String numberLanguage) {
     final items = [
       for (var i = 0; i < page.rows.length; i++)
         if (_v(page.rows[i]) > 0)
           (
-            ChartParts.xLabel(page.rows[i][label.name], label),
+            ChartParts.xLabel(
+              page.rows[i][label.name],
+              label,
+              language: numberLanguage,
+            ),
             _v(page.rows[i]),
             p.seriesAt(i % ReportPalette.slots),
           ),
     ];
     return CustomPaint(
-      painter: _TreemapPainter(items: items, textColor: p.onAccent, border: p.canvas),
+      painter: _TreemapPainter(
+        items: items,
+        textColor: p.onAccent,
+        border: p.canvas,
+      ),
       child: const SizedBox.expand(),
     );
   }
 
-  Widget _buildIcicle(ReportPalette p) {
+  Widget _buildIcicle(ReportPalette p, String numberLanguage) {
     final total = _total();
     final items = [
       for (var i = 0; i < page.rows.length; i++)
@@ -238,7 +252,11 @@ class PartWholeCatalogChart extends StatelessWidget {
                     color: p.seriesAt(item.$1 % ReportPalette.slots),
                     alignment: Alignment.center,
                     child: Text(
-                      ChartParts.xLabel(item.$2[label.name], label),
+                      ChartParts.xLabel(
+                        item.$2[label.name],
+                        label,
+                        language: numberLanguage,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(fontSize: 10, color: p.onAccent),
@@ -252,7 +270,7 @@ class PartWholeCatalogChart extends StatelessWidget {
     );
   }
 
-  Widget _buildFunnel(ReportPalette p) {
+  Widget _buildFunnel(ReportPalette p, String numberLanguage) {
     var maxV = 1e-9;
     for (final r in page.rows) {
       final v = _v(r);
@@ -271,7 +289,11 @@ class PartWholeCatalogChart extends StatelessWidget {
                 color: p.seriesAt(i % ReportPalette.slots),
                 alignment: Alignment.center,
                 child: Text(
-                  ChartParts.xLabel(page.rows[i][label.name], label),
+                  ChartParts.xLabel(
+                    page.rows[i][label.name],
+                    label,
+                    language: numberLanguage,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(fontSize: 11, color: p.onAccent),
@@ -354,8 +376,11 @@ class _PartWholePainter extends CustomPainter {
         for (var dist = r; dist < radius * 1.4 && !found; dist += 3.0) {
           for (var a = 0; a < 24; a++) {
             final ang = (a / 24) * 2 * math.pi;
-            final cand = center + Offset(math.cos(ang) * dist, math.sin(ang) * dist);
-            final overlaps = placed.any((p) => (p.$1 - cand).distance < p.$2 + r + 2.0);
+            final cand =
+                center + Offset(math.cos(ang) * dist, math.sin(ang) * dist);
+            final overlaps = placed.any(
+              (p) => (p.$1 - cand).distance < p.$2 + r + 2.0,
+            );
             if (!overlaps) {
               best = cand;
               found = true;
@@ -412,11 +437,7 @@ class _PartWholePainter extends CustomPainter {
         );
         start += sweep;
       }
-      canvas.drawCircle(
-        center,
-        innerR + 2,
-        Paint()..color = palette.surface,
-      );
+      canvas.drawCircle(center, innerR + 2, Paint()..color = palette.surface);
       start = -math.pi / 2;
       for (final (gi, gv) in [(0, g1), (1, g2)]) {
         if (gv <= 0) continue;

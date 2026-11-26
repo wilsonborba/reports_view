@@ -56,10 +56,15 @@ class ComparisonCatalogChart extends StatelessWidget {
         height: height,
         child: switch (visual) {
           Visual.rankingBar => _buildRanking(context, p),
-          Visual.groupedBar => _buildGroupedOrStacked100(p, percent100: false),
+          Visual.groupedBar => _buildGroupedOrStacked100(
+            p,
+            percent100: false,
+            numberLanguage: numberLanguage,
+          ),
           Visual.stackedBar100 => _buildGroupedOrStacked100(
             p,
             percent100: true,
+            numberLanguage: numberLanguage,
           ),
           Visual.divergingBar => _buildDiverging(p, numberLanguage),
           Visual.floatingBar => _buildRangeComparison(
@@ -67,17 +72,25 @@ class ComparisonCatalogChart extends StatelessWidget {
             mode: _RangeMode.floating,
             numberLanguage: numberLanguage,
           ),
-          Visual.lollipop => _buildLollipopOrDot(p, isLollipop: true),
-          Visual.dotPlot => _buildLollipopOrDot(p, isLollipop: false),
+          Visual.lollipop => _buildLollipopOrDot(
+            p,
+            isLollipop: true,
+            numberLanguage: numberLanguage,
+          ),
+          Visual.dotPlot => _buildLollipopOrDot(
+            p,
+            isLollipop: false,
+            numberLanguage: numberLanguage,
+          ),
           Visual.dumbbell => _buildRangeComparison(
             p,
             mode: _RangeMode.dumbbell,
             numberLanguage: numberLanguage,
           ),
           Visual.slope => _buildSlope(p),
-          Visual.bullet => _buildBullet(p),
+          Visual.bullet => _buildBullet(p, numberLanguage),
           Visual.utilizationBar => _buildUtilization(p, numberLanguage),
-          Visual.pictogram => _buildPictogram(p),
+          Visual.pictogram => _buildPictogram(p, numberLanguage),
           Visual.radialBar => _buildRadial(
             p,
             circular: false,
@@ -90,8 +103,8 @@ class ComparisonCatalogChart extends StatelessWidget {
           ),
           Visual.radar => _buildRadar(p),
           Visual.parallelCoordinates => _buildParallel(p),
-          Visual.marimekko => _buildMarimekko(p),
-          Visual.waterfall => _buildWaterfall(p),
+          Visual.marimekko => _buildMarimekko(p, numberLanguage),
+          Visual.waterfall => _buildWaterfall(p, numberLanguage),
           Visual.pareto => _buildPareto(p),
           Visual.smallMultiples => _buildSmallMultiples(p),
           _ => VerticalBarChart(
@@ -165,6 +178,7 @@ class ComparisonCatalogChart extends StatelessWidget {
   Widget _buildGroupedOrStacked100(
     ReportPalette p, {
     required bool percent100,
+    required String numberLanguage,
   }) {
     final maxVal = percent100 ? 100.0 : _maxPositive(measures);
     return Column(
@@ -215,7 +229,11 @@ class ComparisonCatalogChart extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          ChartParts.xLabel(r[dimension.name], dimension),
+                          ChartParts.xLabel(
+                            r[dimension.name],
+                            dimension,
+                            language: numberLanguage,
+                          ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(fontSize: 11, color: p.textMuted),
@@ -263,7 +281,11 @@ class ComparisonCatalogChart extends StatelessWidget {
             SizedBox(
               width: 96,
               child: Text(
-                ChartParts.xLabel(r[dimension.name], dimension),
+                ChartParts.xLabel(
+                  r[dimension.name],
+                  dimension,
+                  language: numberLanguage,
+                ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(fontSize: 12, color: p.textPrimary),
@@ -340,7 +362,11 @@ class ComparisonCatalogChart extends StatelessWidget {
                   SizedBox(
                     width: 96,
                     child: Text(
-                      ChartParts.xLabel(r[dimension.name], dimension),
+                      ChartParts.xLabel(
+                        r[dimension.name],
+                        dimension,
+                        language: numberLanguage,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(fontSize: 12, color: p.textPrimary),
@@ -394,7 +420,11 @@ class ComparisonCatalogChart extends StatelessWidget {
     );
   }
 
-  Widget _buildLollipopOrDot(ReportPalette p, {required bool isLollipop}) {
+  Widget _buildLollipopOrDot(
+    ReportPalette p, {
+    required bool isLollipop,
+    required String numberLanguage,
+  }) {
     final primary = measures.first;
     final maxVal = _maxPositive([primary]);
     return ListView.separated(
@@ -408,7 +438,11 @@ class ComparisonCatalogChart extends StatelessWidget {
             SizedBox(
               width: 96,
               child: Text(
-                ChartParts.xLabel(r[dimension.name], dimension),
+                ChartParts.xLabel(
+                  r[dimension.name],
+                  dimension,
+                  language: numberLanguage,
+                ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(fontSize: 12, color: p.textPrimary),
@@ -472,7 +506,7 @@ class ComparisonCatalogChart extends StatelessWidget {
     );
   }
 
-  Widget _buildBullet(ReportPalette p) {
+  Widget _buildBullet(ReportPalette p, String numberLanguage) {
     final actual = measures[0];
     final target = measures.length > 1 ? measures[1] : measures[0];
     final maxVal = _maxPositive([actual, target]);
@@ -488,7 +522,11 @@ class ComparisonCatalogChart extends StatelessWidget {
             SizedBox(
               width: 96,
               child: Text(
-                ChartParts.xLabel(r[dimension.name], dimension),
+                ChartParts.xLabel(
+                  r[dimension.name],
+                  dimension,
+                  language: numberLanguage,
+                ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(fontSize: 12, color: p.textPrimary),
@@ -575,7 +613,7 @@ class ComparisonCatalogChart extends StatelessWidget {
     );
   }
 
-  Widget _buildPictogram(ReportPalette p) {
+  Widget _buildPictogram(ReportPalette p, String numberLanguage) {
     final primary = measures.first;
     final maxVal = _maxPositive([primary]);
     return ListView.separated(
@@ -591,7 +629,11 @@ class ComparisonCatalogChart extends StatelessWidget {
             SizedBox(
               width: 96,
               child: Text(
-                ChartParts.xLabel(r[dimension.name], dimension),
+                ChartParts.xLabel(
+                  r[dimension.name],
+                  dimension,
+                  language: numberLanguage,
+                ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(fontSize: 12, color: p.textPrimary),
@@ -666,7 +708,7 @@ class ComparisonCatalogChart extends StatelessWidget {
     );
   }
 
-  Widget _buildMarimekko(ReportPalette p) {
+  Widget _buildMarimekko(ReportPalette p, String numberLanguage) {
     final primary = measures.first;
     final widthField = measures.length > 1 ? measures[1] : primary;
     final totalW = page.rows.fold<double>(
@@ -702,7 +744,11 @@ class ComparisonCatalogChart extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    ChartParts.xLabel(page.rows[i][dimension.name], dimension),
+                    ChartParts.xLabel(
+                      page.rows[i][dimension.name],
+                      dimension,
+                      language: numberLanguage,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(fontSize: 10, color: p.textMuted),
@@ -715,7 +761,7 @@ class ComparisonCatalogChart extends StatelessWidget {
     );
   }
 
-  Widget _buildWaterfall(ReportPalette p) {
+  Widget _buildWaterfall(ReportPalette p, String numberLanguage) {
     final primary = measures.first;
     var running = 0.0;
     var minY = 0.0;
@@ -768,7 +814,11 @@ class ComparisonCatalogChart extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    ChartParts.xLabel(page.rows[i][dimension.name], dimension),
+                    ChartParts.xLabel(
+                      page.rows[i][dimension.name],
+                      dimension,
+                      language: numberLanguage,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(fontSize: 10, color: p.textMuted),

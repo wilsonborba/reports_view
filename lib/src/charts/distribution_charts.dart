@@ -149,7 +149,12 @@ class _DistributionPainter extends CustomPainter {
     canvas.drawLine(plot.topLeft, plot.bottomLeft, axisPaint);
   }
 
-  void _drawText(Canvas canvas, String text, Offset pos, {double maxWidth = 90}) {
+  void _drawText(
+    Canvas canvas,
+    String text,
+    Offset pos, {
+    double maxWidth = 90,
+  }) {
     final tp = TextPainter(
       text: TextSpan(
         text: text,
@@ -193,7 +198,11 @@ class _DistributionPainter extends CustomPainter {
       );
       canvas.drawRect(rect, fill);
     }
-    _drawText(canvas, numberText(minV, 1, language: numberLanguage), Offset(plot.left, plot.bottom + 4));
+    _drawText(
+      canvas,
+      numberText(minV, 1, language: numberLanguage),
+      Offset(plot.left, plot.bottom + 4),
+    );
     _drawText(
       canvas,
       numberText(maxV, 1, language: numberLanguage),
@@ -210,6 +219,7 @@ class _DistributionPainter extends CustomPainter {
       final hi = idx.ceil();
       return s[lo] + (s[hi] - s[lo]) * (idx - lo);
     }
+
     return (s.first, at(0.25), at(0.5), at(0.75), s.last);
   }
 
@@ -238,7 +248,12 @@ class _DistributionPainter extends CustomPainter {
       final fill = Paint()..color = c.withValues(alpha: 0.25);
 
       canvas.drawLine(Offset(cx, mapY(lo)), Offset(cx, mapY(hi)), stroke);
-      final rect = Rect.fromLTRB(cx - boxW / 2, mapY(q3), cx + boxW / 2, mapY(q1));
+      final rect = Rect.fromLTRB(
+        cx - boxW / 2,
+        mapY(q3),
+        cx + boxW / 2,
+        mapY(q1),
+      );
       canvas.drawRect(rect, fill);
       canvas.drawRect(rect, stroke);
       canvas.drawLine(
@@ -309,7 +324,11 @@ class _DistributionPainter extends CustomPainter {
           ..color = palette.textPrimary
           ..strokeWidth = 3,
       );
-      canvas.drawCircle(Offset(cx, mapY(med)), 3, Paint()..color = palette.canvas);
+      canvas.drawCircle(
+        Offset(cx, mapY(med)),
+        3,
+        Paint()..color = palette.canvas,
+      );
       _drawText(
         canvas,
         entries[i].key,
@@ -548,7 +567,9 @@ class _DistributionPainter extends CustomPainter {
     final leftVals = <double>[];
     final rightVals = <double>[];
     for (final r in subset) {
-      final a = (r[value.name] is num) ? (r[value.name] as num).toDouble().abs() : 0.0;
+      final a = (r[value.name] is num)
+          ? (r[value.name] as num).toDouble().abs()
+          : 0.0;
       final b = (secondValue != null && r[secondValue!.name] is num)
           ? (r[secondValue!.name] as num).toDouble().abs()
           : a * 0.85;
@@ -576,7 +597,11 @@ class _DistributionPainter extends CustomPainter {
       canvas.drawRect(Rect.fromLTWH(cx + 2, y, rw, bh), rightPaint);
       _drawText(
         canvas,
-        ChartParts.xLabel(subset[i][label.name], label),
+        ChartParts.xLabel(
+          subset[i][label.name],
+          label,
+          language: numberLanguage,
+        ),
         Offset(4, y),
         maxWidth: labelW - 6,
       );
@@ -610,7 +635,8 @@ class _DistributionPainter extends CustomPainter {
       canvas.drawPath(cloud, Paint()..color = c.withValues(alpha: 0.3));
       final dot = Paint()..color = c;
       for (var j = 0; j < entries[i].value.length; j++) {
-        final x = plot.left + ((entries[i].value[j] - minV) / span) * plot.width;
+        final x =
+            plot.left + ((entries[i].value[j] - minV) / span) * plot.width;
         final y = base + 5 + (j % 3) * 3.0;
         canvas.drawCircle(Offset(x, y), 2.5, dot);
       }
@@ -620,5 +646,8 @@ class _DistributionPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _DistributionPainter old) =>
-      old.visual != visual || old.rows != rows || old.palette != palette;
+      old.visual != visual ||
+      old.rows != rows ||
+      old.palette != palette ||
+      old.numberLanguage != numberLanguage;
 }

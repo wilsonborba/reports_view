@@ -100,12 +100,11 @@ class RelationCatalogChart extends StatelessWidget {
   }) {
     final counts = <(int, int), int>{};
     for (final (ux, uy) in unitPoints) {
-      final r = ((1.0 - uy.clamp(0.0, 1.0)) * (rows - 1e-6))
-          .floor()
-          .clamp(0, rows - 1);
-      final c = (ux.clamp(0.0, 1.0) * (cols - 1e-6))
-          .floor()
-          .clamp(0, cols - 1);
+      final r = ((1.0 - uy.clamp(0.0, 1.0)) * (rows - 1e-6)).floor().clamp(
+        0,
+        rows - 1,
+      );
+      final c = (ux.clamp(0.0, 1.0) * (cols - 1e-6)).floor().clamp(0, cols - 1);
       counts[(c, r)] = (counts[(c, r)] ?? 0) + 1;
     }
     return counts;
@@ -346,12 +345,12 @@ class _RelationPainter extends CustomPainter {
       final py = plot.bottom - ((ys[i] - minY) / spanY) * plot.height;
       final r = bubble
           ? (5.0 +
-                11.0 *
-                    ((sizeMeasure != null
-                            ? _num(rows[i], sizeMeasure!).abs()
-                            : ys[i].abs()) /
-                        math.max(1.0, maxY.abs())))
-              .clamp(4.0, 18.0)
+                    11.0 *
+                        ((sizeMeasure != null
+                                ? _num(rows[i], sizeMeasure!).abs()
+                                : ys[i].abs()) /
+                            math.max(1.0, maxY.abs())))
+                .clamp(4.0, 18.0)
           : 4.5;
       canvas.drawCircle(
         Offset(px, py),
@@ -362,7 +361,11 @@ class _RelationPainter extends CustomPainter {
               .withValues(alpha: 0.78),
       );
     }
-    _drawText(canvas, numberText(minX, 1, language: numberLanguage), Offset(plot.left, plot.bottom + 4));
+    _drawText(
+      canvas,
+      numberText(minX, 1, language: numberLanguage),
+      Offset(plot.left, plot.bottom + 4),
+    );
     _drawText(
       canvas,
       numberText(maxX, 1, language: numberLanguage),
@@ -420,7 +423,7 @@ class _RelationPainter extends CustomPainter {
       }
       _drawText(
         canvas,
-        ChartParts.xLabel(rows[r][label.name], label),
+        ChartParts.xLabel(rows[r][label.name], label, language: numberLanguage),
         Offset(2, plot.top + r * ch + ch * 0.25),
         maxWidth: 50,
       );
@@ -436,7 +439,10 @@ class _RelationPainter extends CustomPainter {
   void _paintCorrelationMatrix(Canvas canvas, Size size) {
     final cols = measures.take(4).toList();
     final colNames = [for (final m in cols) m.name];
-    final matrix = RelationCatalogChart.computeCorrelationMatrix(rows, colNames);
+    final matrix = RelationCatalogChart.computeCorrelationMatrix(
+      rows,
+      colNames,
+    );
     final k = cols.length;
     final plot = Rect.fromLTWH(52, 20, size.width - 68, size.height - 44);
     final cw = plot.width / k;
@@ -524,7 +530,10 @@ class _RelationPainter extends CustomPainter {
       hex.close();
       canvas.drawPath(
         hex,
-        Paint()..color = palette.seriesAt(0).withValues(alpha: 0.2 + intensity * 0.75),
+        Paint()
+          ..color = palette
+              .seriesAt(0)
+              .withValues(alpha: 0.2 + intensity * 0.75),
       );
     }
     _drawText(
@@ -567,7 +576,9 @@ class _RelationPainter extends CustomPainter {
         canvas.drawRect(
           Rect.fromLTWH(plot.left + gx * cw, plot.top + gy * ch, cw, ch),
           Paint()
-            ..color = palette.seriesAt(0).withValues(alpha: 0.12 + level * 0.18),
+            ..color = palette
+                .seriesAt(0)
+                .withValues(alpha: 0.12 + level * 0.18),
         );
       }
     }
@@ -665,9 +676,7 @@ class _RelationPainter extends CustomPainter {
     final fB = measures.length > 1 ? measures[1] : yMeasure;
     final rawC = measures.length > 2 ? measures[2] : sizeMeasure;
     final hasThird =
-        rawC != null &&
-        rawC.name != xMeasure.name &&
-        rawC.name != fB.name;
+        rawC != null && rawC.name != xMeasure.name && rawC.name != fB.name;
     final cornerLabels = RelationCatalogChart.ternaryCornerLabels(
       xMeasure,
       fB,

@@ -642,7 +642,11 @@ class _ScienceAiPainter extends CustomPainter {
       .toList();
 
   String _label(int i) => dimension != null
-      ? ChartParts.xLabel(rows[i][dimension!.name], dimension!)
+      ? ChartParts.xLabel(
+          rows[i][dimension!.name],
+          dimension!,
+          language: numberLanguage,
+        )
       : '${i + 1}';
 
   void _paintUnavailable(Canvas canvas, Size size, String message) {

@@ -29,10 +29,14 @@ class TimeCatalogChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
+    final numberLanguage = numberLanguageFor(context);
     if (page.rows.isEmpty || measures.isEmpty) {
       return const SizedBox.shrink();
     }
-    final labels = [for (final r in page.rows) ChartParts.xLabel(r[x.name], x)];
+    final labels = [
+      for (final r in page.rows)
+        ChartParts.xLabel(r[x.name], x, language: numberLanguage),
+    ];
     final summary =
         '${visual.name}: ${labels.take(4).join(', ')} (${page.rows.length})';
 
@@ -44,6 +48,7 @@ class TimeCatalogChart extends StatelessWidget {
           Visual.gantt || Visual.timeline => _buildGanttOrTimeline(
             p,
             isGantt: visual == Visual.gantt,
+            numberLanguage: numberLanguage,
           ),
           Visual.calendarHeatmap => _buildCalendarHeatmap(p),
           _ => CustomPaint(
@@ -61,7 +66,11 @@ class TimeCatalogChart extends StatelessWidget {
     );
   }
 
-  Widget _buildGanttOrTimeline(ReportPalette p, {required bool isGantt}) {
+  Widget _buildGanttOrTimeline(
+    ReportPalette p, {
+    required bool isGantt,
+    required String numberLanguage,
+  }) {
     final m = measures.first;
     final m2 = measures.length > 1 ? measures[1] : m;
     var maxEnd = 1.0;
@@ -86,7 +95,7 @@ class TimeCatalogChart extends StatelessWidget {
             SizedBox(
               width: 96,
               child: Text(
-                ChartParts.xLabel(r[x.name], x),
+                ChartParts.xLabel(r[x.name], x, language: numberLanguage),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(fontSize: 12, color: p.textPrimary),
@@ -276,10 +285,7 @@ class _TimeSeriesPainter extends CustomPainter {
     if (visual == Visual.horizon) {
       final m = measures.first;
       final vals = [for (var i = 0; i < n; i++) _val(i, m)];
-      final maxAbs = vals.fold<double>(
-        1e-9,
-        (a, v) => math.max(a, v.abs()),
-      );
+      final maxAbs = vals.fold<double>(1e-9, (a, v) => math.max(a, v.abs()));
       const bands = 3;
       final bandSize = maxAbs / bands;
       final baseY = size.height - padY;
@@ -290,10 +296,10 @@ class _TimeSeriesPainter extends CustomPainter {
         for (var i = 0; i < n; i++) {
           final cx = padX + i * stepX;
           final v = vals[i];
-          final posFrac =
-              v > lo ? ((v - lo) / bandSize).clamp(0.0, 1.0) : 0.0;
-          final negFrac =
-              -v > lo ? ((-v - lo) / bandSize).clamp(0.0, 1.0) : 0.0;
+          final posFrac = v > lo ? ((v - lo) / bandSize).clamp(0.0, 1.0) : 0.0;
+          final negFrac = -v > lo
+              ? ((-v - lo) / bandSize).clamp(0.0, 1.0)
+              : 0.0;
           posPath.lineTo(cx, baseY - posFrac * h);
           negPath.lineTo(cx, baseY - negFrac * h);
         }
@@ -321,10 +327,7 @@ class _TimeSeriesPainter extends CustomPainter {
         for (var i = 0; i < n; i++)
           measures.fold<double>(0.0, (a, f) => a + math.max(0.0, _val(i, f))),
       ];
-      final cum = List<double>.generate(
-        n,
-        (i) => (maxY - totals[i]) * 0.5,
-      );
+      final cum = List<double>.generate(n, (i) => (maxY - totals[i]) * 0.5);
       for (var mIdx = 0; mIdx < measures.length; mIdx++) {
         final m = measures[mIdx];
         final color = palette.seriesAt(mIdx);

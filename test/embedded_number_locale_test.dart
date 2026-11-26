@@ -2,6 +2,10 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:reports_view/reports_view.dart';
+import 'package:reports_view/src/charts/comparison_charts.dart';
+import 'package:reports_view/src/charts/distribution_charts.dart';
+import 'package:reports_view/src/charts/part_whole_charts.dart';
+import 'package:reports_view/src/charts/time_charts.dart';
 
 const _palette = ReportPalette(
   canvas: Color(0xFFFFFFFF),
@@ -136,6 +140,151 @@ Widget _app({required Widget child}) => MaterialApp(
 );
 
 void main() {
+  testWidgets('numeric category labels use the host locale across catalogs', (
+    tester,
+  ) async {
+    const dimension = FieldInfo(
+      name: 'amount',
+      label: 'Amount',
+      type: 'float',
+      role: 'dimension',
+      decimals: 1,
+    );
+    final page = DatasetPage(
+      descriptor: const DatasetDescriptor(
+        datasetId: 'numeric-category',
+        title: 'Numeric categories',
+        description: '',
+        equation: null,
+        fields: [dimension, _measure],
+        filters: [],
+      ),
+      rows: const [
+        {'amount': 1234.5, 'score': 0.2},
+      ],
+      offset: 0,
+      limit: 1,
+      totalRows: 1,
+    );
+    final charts = <Widget>[
+      for (final visual in [
+        Visual.groupedBar,
+        Visual.stackedBar100,
+        Visual.divergingBar,
+        Visual.floatingBar,
+        Visual.lollipop,
+        Visual.dotPlot,
+        Visual.dumbbell,
+        Visual.bullet,
+        Visual.pictogram,
+        Visual.marimekko,
+        Visual.waterfall,
+      ])
+        ComparisonCatalogChart(
+          page: page,
+          visual: visual,
+          dimension: dimension,
+          measures: const [_measure],
+        ),
+      for (final visual in [Visual.meter, Visual.icicle, Visual.funnel])
+        PartWholeCatalogChart(
+          page: page,
+          visual: visual,
+          label: dimension,
+          value: _measure,
+        ),
+      for (final visual in [Visual.gantt, Visual.timeline])
+        TimeCatalogChart(
+          page: page,
+          visual: visual,
+          x: dimension,
+          measures: const [_measure],
+        ),
+    ];
+    for (final chart in charts) {
+      await tester.pumpWidget(
+        _app(child: _localized(const Locale('pt', 'BR'), chart)),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.text('1.234,5'),
+        findsWidgets,
+        reason: '${chart.runtimeType} must localize numeric category labels',
+      );
+      expect(tester.takeException(), isNull);
+    }
+  });
+
+  testWidgets('comparison values use the host locale in every helper', (
+    tester,
+  ) async {
+    final amount = _page.descriptor.fields.last;
+    for (final visual in [Visual.lollipop, Visual.dotPlot, Visual.pictogram]) {
+      for (final locale in const [
+        Locale('en'),
+        Locale('pt', 'BR'),
+        Locale('th'),
+      ]) {
+        await tester.pumpWidget(
+          _app(
+            child: _localized(
+              locale,
+              ComparisonCatalogChart(
+                page: _page,
+                visual: visual,
+                dimension: _page.descriptor.fields.first,
+                measures: [amount],
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(
+          find.text(locale.languageCode == 'pt' ? '1.234,5' : '1,234.5'),
+          findsOneWidget,
+          reason: '${visual.name} must use the actual host locale $locale',
+        );
+        expect(tester.takeException(), isNull);
+      }
+    }
+  });
+
+  testWidgets('distribution repaints after a locale-only host update', (
+    tester,
+  ) async {
+    Future<CustomPainter> show(Locale locale) async {
+      await tester.pumpWidget(
+        _app(
+          child: _localized(
+            locale,
+            DistributionCatalogChart(
+              page: _page,
+              visual: Visual.histogram,
+              label: _page.descriptor.fields.first,
+              value: _measure,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      return tester
+          .widget<CustomPaint>(
+            find.descendant(
+              of: find.byType(DistributionCatalogChart),
+              matching: find.byType(CustomPaint),
+            ),
+          )
+          .painter!;
+    }
+
+    final original = await show(const Locale('en'));
+    final unchanged = await show(const Locale('en'));
+    expect(unchanged.shouldRepaint(original), isFalse);
+    final portuguese = await show(const Locale('pt', 'BR'));
+    expect(portuguese.shouldRepaint(unchanged), isTrue);
+    expect(tester.takeException(), isNull);
+  });
+
   test('explicit host formatting keeps the export zone fallback intact', () {
     expect(withNumberLanguage('pt-BR', () => numberText(1234.5, 1)), '1.234,5');
     expect(numberText(-1, 1, language: 'pt-BR'), '-1,0');
