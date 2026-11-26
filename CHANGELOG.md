@@ -1,8 +1,4 @@
-# Changelog
-
-## [Unreleased]
-
-## [0.3.0] - 2026-11-26
+## [unreleased]
 
 ### 🚀 Features
 
@@ -28,12 +24,14 @@
 - Format embedded chart numbers by host locale
 - *(charts)* Propagate host locale through catalog labels and repaint
 - *(charts)* Integrate reviewed host locale formatting and repaint (#4)
+- Bundle font license copies in package archive
 
 ### 📚 Documentation
 
 - *(changelog)* Record table column alignment fix
 - *(changelog)* Record responsive chart header correction
 - *(changelog)* Record category label correction
+- *(changelog)* Record reviewed embedded locale fixes
 
 ### 🎨 Styling
 
@@ -45,6 +43,10 @@
 - Refresh table geometry goldens
 - *(goldens)* Update category label layouts
 
+### ⚙️ Miscellaneous Tasks
+
+- *(release)* Prepare reports_view 0.3.0 metadata
+- *(package)* Prepare reviewed 0.3 metadata and font notices (#65)
 ## [0.2.0] - 2026-11-20
 
 ### 🚀 Features
@@ -67,8 +69,14 @@
 - *(goldens)* Load Ubuntu Sans and IBM Plex Sans Thai fonts and regenerate 192 goldens (#55, #56, #57, #58)
 - *(reports_view#68)* Localize ChartFrame labels via context.tr and remove em dash
 - *(reports_view#68)* Apply Localizations.override in golden tests so pt-BR and TH ChartFrame labels render
-- *(relation)* Replace placeholder relation painters with real data-driven renderers, add data-sensitivity tests, and avoid repeating ternary corner label with two measures (#59)
+- Real data renderers for relation charts, data sensitivity tests, and .pubignore (#59)
+- *(ternary)* Avoid repeating corner label with two measures and prep v0.2.0
 
-## 0.1.0
+### ⚙️ Miscellaneous Tasks
 
-- Initial extraction of the pure Flutter chart, diagram, KPI, and table renderer from `reports_ui` with caller-supplied theme tokens and open-in-Reports link builder.
+- *(release)* Prepare reports_view 0.2.0
+## [0.1.0] - 2026-11-19
+
+### ⚙️ Miscellaneous Tasks
+
+- *(release)* Prepare v0.1.0
