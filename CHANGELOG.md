@@ -23,11 +23,15 @@
 - *(charts)* Fit category labels to available slots
 - *(charts)* Apply label thinning once
 - *(charts)* Integrate available category label widths (#3)
+- Format embedded chart numbers by host locale
+- *(charts)* Propagate host locale through catalog labels and repaint
+- *(charts)* Integrate reviewed host locale formatting and repaint (#4)
 
 ### 📚 Documentation
 
 - *(changelog)* Record table column alignment fix
 - *(changelog)* Record responsive chart header correction
+- *(changelog)* Record category label correction
 
 ### 🎨 Styling
 
