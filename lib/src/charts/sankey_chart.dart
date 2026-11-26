@@ -59,10 +59,11 @@ class _SankeyChartState extends State<SankeyChart> {
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
+    final numberLanguage = numberLanguageFor(context);
     final colors = SeriesColorScope.of(context);
     final layout = SankeyLayout.build(widget.page.rows, widget.stages, widget.measure, domain: colors.domain);
     if (layout.isEmpty) return Text(context.tr('no_data'), style: TextStyle(color: p.textMuted));
-    String name(SankeyNode n) => n.isOther ? context.tr('other') : valueText(n.raw, widget.stages[n.stage]);
+    String name(SankeyNode n) => n.isOther ? context.tr('other') : valueText(n.raw, widget.stages[n.stage], language: numberLanguage);
     Color colorOf(SankeyNode n) {
       if (n.stage > 0) return p.textMuted;
       if (n.isOther) return p.other;
@@ -106,7 +107,7 @@ class _SankeyChartState extends State<SankeyChart> {
             final text = Text.rich(
               TextSpan(children: [
                 TextSpan(text: name(n), style: TextStyle(fontWeight: FontWeight.w600, color: p.textPrimary)),
-                TextSpan(text: '  ${compactNumber(n.value)}', style: TextStyle(color: p.textMuted)),
+                TextSpan(text: '  ${compactNumber(n.value, language: numberLanguage)}', style: TextStyle(color: p.textMuted)),
               ]),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -152,8 +153,8 @@ class _SankeyChartState extends State<SankeyChart> {
               decoration: BoxDecoration(color: p.textPrimary, borderRadius: BorderRadius.circular(ReportPalette.controlRadius)),
               child: Text.rich(TextSpan(style: ChartTooltip.base(p), children: [
                 TextSpan(text: '${name(l.source)} → ${name(l.target)}\n', style: const TextStyle(fontWeight: FontWeight.w700)),
-                ...ChartTooltip.row(p, valueWithUnit(l.value, widget.measure), widget.measure.label),
-                TextSpan(text: '\n${context.tr('share_of', {'share': '${numberText(share, 1)}%', 'name': name(l.source)})}'),
+                ...ChartTooltip.row(p, valueWithUnit(l.value, widget.measure, language: numberLanguage), widget.measure.label),
+                TextSpan(text: '\n${context.tr('share_of', {'share': '${numberText(share, 1, language: numberLanguage)}%', 'name': name(l.source)})}'),
               ])),
             ),
           ),

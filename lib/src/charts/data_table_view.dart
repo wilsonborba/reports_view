@@ -40,10 +40,14 @@ class _DataTableViewState extends State<DataTableView> {
     super.dispose();
   }
 
-  static double _width(FieldInfo f, List<Map<String, dynamic>> rows) {
+  static double _width(
+    FieldInfo f,
+    List<Map<String, dynamic>> rows,
+    String numberLanguage,
+  ) {
     var longest = labelWithUnit(f).length;
     for (final r in rows.take(200)) {
-      final l = valueText(r[f.name], f).length;
+      final l = valueText(r[f.name], f, language: numberLanguage).length;
       if (l > longest) longest = l;
     }
     return (longest * 7.4 + 28).clamp(72, 420).toDouble();
@@ -52,6 +56,7 @@ class _DataTableViewState extends State<DataTableView> {
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
+    final numberLanguage = numberLanguageFor(context);
     final fields = widget.page.descriptor.fields;
     var rows = widget.page.rows;
     if (_sortField != null) {
@@ -76,7 +81,9 @@ class _DataTableViewState extends State<DataTableView> {
         ((pageIndex + 1) * size).clamp(0, allCount),
       );
     }
-    final widths = [for (final f in fields) _width(f, widget.page.rows)];
+    final widths = [
+      for (final f in fields) _width(f, widget.page.rows, numberLanguage),
+    ];
     final total = widths.fold<double>(0, (s, w) => s + w);
 
     Widget cell(
@@ -165,12 +172,17 @@ class _DataTableViewState extends State<DataTableView> {
               children: [
                 Text(
                   context.tr('rows_range', {
-                    'from': numberText(pageIndex * size + 1, 0),
+                    'from': numberText(
+                      pageIndex * size + 1,
+                      0,
+                      language: numberLanguage,
+                    ),
                     'to': numberText(
                       ((pageIndex + 1) * size).clamp(0, allCount),
                       0,
+                      language: numberLanguage,
                     ),
-                    'total': numberText(allCount, 0),
+                    'total': numberText(allCount, 0, language: numberLanguage),
                   }),
                   key: const Key('table_range'),
                   style: TextStyle(fontSize: 12, color: p.textMuted),
@@ -257,6 +269,7 @@ class _DataTableViewState extends State<DataTableView> {
                                   valueWithUnitCell(
                                     rows[r][fields[i].name],
                                     fields[i],
+                                    language: numberLanguage,
                                   ),
                                   columnWidths[i] - (i == 0 ? 2 : 0),
                                   fields[i].isNumeric && !fields[i].isDimension,
@@ -285,5 +298,6 @@ class _DataTableViewState extends State<DataTableView> {
   }
 
   /// Cells show the value only; the unit is in the header.
-  static String valueWithUnitCell(dynamic v, FieldInfo f) => valueText(v, f);
+  static String valueWithUnitCell(dynamic v, FieldInfo f, {String? language}) =>
+      valueText(v, f, language: language);
 }

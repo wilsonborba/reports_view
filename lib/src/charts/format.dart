@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:flutter/widgets.dart';
+
 import '../models/report.dart';
 
 /// Language of the number separators on screen. The language controller sets it.
@@ -12,12 +14,24 @@ T withNumberLanguage<T>(String lang, T Function() body) => runZoned(body, zoneVa
 
 String get _language => (Zone.current[#numberLanguage] as String?) ?? numberLanguage;
 
-/// Thousands and decimal separators of the current number language.
-(String, String) get _separators => _language == 'pt-BR' ? ('.', ',') : (',', '.');
+/// Host locale for a widget renderer, falling back when localization delegates
+/// are absent (for example, in standalone chart fixtures).
+String numberLanguageFor(BuildContext context) =>
+    Localizations.maybeLocaleOf(context)?.toLanguageTag() ?? _language;
+
+String _resolvedLanguage(String? language) {
+  final value = (language ?? _language).replaceAll('_', '-').toLowerCase();
+  return value == 'pt' || value.startsWith('pt-') ? 'pt-BR' : value;
+}
+
+/// Thousands and decimal separators for [language], or the active zone/global
+/// language when omitted.
+(String, String) _separatorsFor(String? language) =>
+    _resolvedLanguage(language) == 'pt-BR' ? ('.', ',') : (',', '.');
 
 /// Number with thousands separators and a fixed number of decimals.
-String numberText(num value, int decimals) {
-  final (group, point) = _separators;
+String numberText(num value, int decimals, {String? language}) {
+  final (group, point) = _separatorsFor(language);
   final negative = value < 0;
   final fixed = value.abs().toStringAsFixed(decimals);
   final parts = fixed.split('.');
@@ -32,8 +46,8 @@ String numberText(num value, int decimals) {
 }
 
 /// Short number for chart axes: 950, 1.2k, 3.4M.
-String compactNumber(num value) {
-  final point = _separators.$2;
+String compactNumber(num value, {String? language}) {
+  final point = _separatorsFor(language).$2;
   String d(String text) => point == '.' ? text : text.replaceAll('.', point);
   final a = value.abs();
   if (a >= 1e9) return '${d((value / 1e9).toStringAsFixed(1))}B';
@@ -75,38 +89,49 @@ double? measureValue(dynamic v, FieldInfo? f) {
 }
 
 /// Display text of a measure cell with its unit, or [missingLabel] when missing (`no_data`).
-String measureValueWithUnit(dynamic v, FieldInfo? f, {String missingLabel = 'No data'}) {
+String measureValueWithUnit(
+  dynamic v,
+  FieldInfo? f, {
+  String missingLabel = 'No data',
+  String? language,
+}) {
   final n = measureValue(v, f);
   if (n == null) return missingLabel;
-  return valueWithUnit(n, f);
+  return valueWithUnit(n, f, language: language);
 }
 
 /// Display text of a value for its field (type, decimals). Without the unit.
-String valueText(dynamic v, FieldInfo? f) {
+String valueText(dynamic v, FieldInfo? f, {String? language}) {
   if (v == null) return '';
   if (v is num && f != null) {
     switch (f.type) {
       case 'hour':
         return '${v.toInt().toString().padLeft(2, '0')}:00';
       case 'integer':
-        return numberText(v, 0);
+        return numberText(v, 0, language: language);
       case 'percent':
-        return '${numberText(v, f.decimals ?? 1)}%';
+        return '${numberText(v, f.decimals ?? 1, language: language)}%';
       case 'latitude':
       case 'longitude':
-        return v.toStringAsFixed(f.decimals ?? 5);
+        return numberText(v, f.decimals ?? 5, language: language);
       default:
-        return numberText(v, f.decimals ?? (v == v.roundToDouble() ? 0 : 2));
+        return numberText(
+          v,
+          f.decimals ?? (v == v.roundToDouble() ? 0 : 2),
+          language: language,
+        );
     }
   }
-  if (v is num) return numberText(v, v == v.roundToDouble() ? 0 : 2);
+  if (v is num) {
+    return numberText(v, v == v.roundToDouble() ? 0 : 2, language: language);
+  }
   if (v is String && f?.type == 'date') return dateText(v);
   return '$v';
 }
 
 /// Display text with the unit (the percent sign already comes from [valueText]).
-String valueWithUnit(dynamic v, FieldInfo? f) {
-  final text = valueText(v, f);
+String valueWithUnit(dynamic v, FieldInfo? f, {String? language}) {
+  final text = valueText(v, f, language: language);
   final unit = f?.unit;
   if (text.isEmpty || unit == null || unit.isEmpty || unit == '%' || unit == 'x' && text.endsWith('x')) return text;
   if (unit == 'x') return '${text}x';
@@ -117,7 +142,7 @@ String valueWithUnit(dynamic v, FieldInfo? f) {
 String labelWithUnit(FieldInfo f) => (f.unit == null || f.unit!.isEmpty) ? f.label : '${f.label} (${f.unit})';
 
 /// Stored data size: 950 B, 12.3 KB, 45.6 MB, 1.2 GB (1 KB = 1024 B).
-String bytesText(num bytes) {
+String bytesText(num bytes, {String? language}) {
   const units = ['B', 'KB', 'MB', 'GB', 'TB'];
   var v = bytes.toDouble();
   var u = 0;
@@ -125,5 +150,7 @@ String bytesText(num bytes) {
     v /= 1024;
     u++;
   }
-  return u == 0 ? '${v.toInt()} B' : '${v.toStringAsFixed(v >= 100 ? 0 : 1)} ${units[u]}';
+  return u == 0
+      ? '${numberText(v, 0, language: language)} B'
+      : '${numberText(v, v >= 100 ? 0 : 1, language: language)} ${units[u]}';
 }

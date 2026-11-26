@@ -172,9 +172,11 @@ class RelationCatalogChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
+    final numberLanguage = numberLanguageFor(context);
     if (page.rows.isEmpty) return const SizedBox.shrink();
     final labels = [
-      for (final r in page.rows) ChartParts.xLabel(r[label.name], label),
+      for (final r in page.rows)
+        ChartParts.xLabel(r[label.name], label, language: numberLanguage),
     ];
     final allMeasures = measures.isNotEmpty
         ? measures
@@ -203,6 +205,7 @@ class RelationCatalogChart extends StatelessWidget {
                 yMeasure: yMeasure,
                 sizeMeasure: sizeMeasure,
                 measures: allMeasures,
+                numberLanguage: numberLanguage,
               ),
             );
           },
@@ -221,6 +224,7 @@ class _RelationPainter extends CustomPainter {
   final FieldInfo yMeasure;
   final FieldInfo? sizeMeasure;
   final List<FieldInfo> measures;
+  final String numberLanguage;
 
   _RelationPainter({
     required this.palette,
@@ -231,6 +235,7 @@ class _RelationPainter extends CustomPainter {
     required this.yMeasure,
     required this.sizeMeasure,
     required this.measures,
+    required this.numberLanguage,
   });
 
   double _num(Map<String, dynamic> r, FieldInfo f) {
@@ -357,10 +362,10 @@ class _RelationPainter extends CustomPainter {
               .withValues(alpha: 0.78),
       );
     }
-    _drawText(canvas, numberText(minX, 1), Offset(plot.left, plot.bottom + 4));
+    _drawText(canvas, numberText(minX, 1, language: numberLanguage), Offset(plot.left, plot.bottom + 4));
     _drawText(
       canvas,
-      numberText(maxX, 1),
+      numberText(maxX, 1, language: numberLanguage),
       Offset(plot.right - 34, plot.bottom + 4),
     );
   }
@@ -407,7 +412,7 @@ class _RelationPainter extends CustomPainter {
         );
         _drawText(
           canvas,
-          numberText(v, 0),
+          numberText(v, 0, language: numberLanguage),
           rect.topLeft + const Offset(4, 4),
           maxWidth: cw - 8,
           color: t > 0.55 ? palette.onAccent : palette.textPrimary,
@@ -422,7 +427,7 @@ class _RelationPainter extends CustomPainter {
     }
     _drawText(
       canvas,
-      '${numberText(minV, 0)} .. ${numberText(maxV, 0)}',
+      '${numberText(minV, 0, language: numberLanguage)} .. ${numberText(maxV, 0, language: numberLanguage)}',
       Offset(plot.left, plot.bottom + 4),
       maxWidth: 140,
     );
@@ -466,7 +471,7 @@ class _RelationPainter extends CustomPainter {
         canvas.drawRect(rect, Paint()..color = color);
         _drawText(
           canvas,
-          v.toStringAsFixed(2),
+          numberText(v, 2, language: numberLanguage),
           rect.topLeft + const Offset(4, 4),
           maxWidth: cw - 8,
           color: v.abs() > 0.55 ? palette.onAccent : palette.textPrimary,
@@ -475,7 +480,7 @@ class _RelationPainter extends CustomPainter {
     }
     _drawText(
       canvas,
-      'r: -1.0 .. +1.0',
+      'r: ${numberText(-1, 1, language: numberLanguage)} .. +${numberText(1, 1, language: numberLanguage)}',
       Offset(plot.left, plot.bottom + 4),
       maxWidth: 140,
     );
@@ -693,5 +698,8 @@ class _RelationPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _RelationPainter old) =>
-      old.visual != visual || old.rows != rows || old.palette != palette;
+      old.visual != visual ||
+      old.rows != rows ||
+      old.palette != palette ||
+      old.numberLanguage != numberLanguage;
 }

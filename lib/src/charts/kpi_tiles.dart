@@ -80,6 +80,7 @@ class _KpiTileState extends State<_KpiTile> {
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
+    final numberLanguage = numberLanguageFor(context);
     final f = widget.field;
     final number = asDouble(widget.value);
     Widget valueText_(dynamic v) => FittedBox(
@@ -89,7 +90,7 @@ class _KpiTileState extends State<_KpiTile> {
         TextSpan(
           children: [
             TextSpan(
-              text: valueText(v, f),
+              text: valueText(v, f, language: numberLanguage),
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.w700,

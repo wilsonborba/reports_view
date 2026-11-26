@@ -872,7 +872,7 @@ void main() {
           singleClassRows,
           const Locale('pt', 'BR'),
         ),
-        contains('ROC indisponível (classe única) | PR AUC 1.00'),
+        contains('ROC indisponível (classe única) | PR AUC 1,00'),
       );
       expect(
         await semanticsFor(Visual.rocPr, singleClassRows, const Locale('th')),

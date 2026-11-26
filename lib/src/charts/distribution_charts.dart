@@ -30,9 +30,11 @@ class DistributionCatalogChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
+    final numberLanguage = numberLanguageFor(context);
     if (page.rows.isEmpty) return const SizedBox.shrink();
     final labels = [
-      for (final r in page.rows) ChartParts.xLabel(r[label.name], label),
+      for (final r in page.rows)
+        ChartParts.xLabel(r[label.name], label, language: numberLanguage),
     ];
     final summary =
         '${visual.name}: ${labels.take(4).join(', ')} (${page.rows.length})';
@@ -52,6 +54,7 @@ class DistributionCatalogChart extends StatelessWidget {
                 label: label,
                 value: value,
                 secondValue: secondValue,
+                numberLanguage: numberLanguage,
               ),
             );
           },
@@ -68,6 +71,7 @@ class _DistributionPainter extends CustomPainter {
   final FieldInfo label;
   final FieldInfo value;
   final FieldInfo? secondValue;
+  final String numberLanguage;
 
   _DistributionPainter({
     required this.palette,
@@ -76,6 +80,7 @@ class _DistributionPainter extends CustomPainter {
     required this.label,
     required this.value,
     required this.secondValue,
+    required this.numberLanguage,
   });
 
   List<double> _numericValues(FieldInfo field) {
@@ -94,7 +99,11 @@ class _DistributionPainter extends CustomPainter {
     for (final r in rows) {
       final v = r[value.name];
       if (v is! num || !v.isFinite) continue;
-      final key = ChartParts.xLabel(r[label.name], label);
+      final key = ChartParts.xLabel(
+        r[label.name],
+        label,
+        language: numberLanguage,
+      );
       groups.putIfAbsent(key, () => []).add(v.toDouble());
     }
     return groups;
@@ -184,10 +193,10 @@ class _DistributionPainter extends CustomPainter {
       );
       canvas.drawRect(rect, fill);
     }
-    _drawText(canvas, numberText(minV, 1), Offset(plot.left, plot.bottom + 4));
+    _drawText(canvas, numberText(minV, 1, language: numberLanguage), Offset(plot.left, plot.bottom + 4));
     _drawText(
       canvas,
-      numberText(maxV, 1),
+      numberText(maxV, 1, language: numberLanguage),
       Offset(plot.right - 36, plot.bottom + 4),
     );
   }

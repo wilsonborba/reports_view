@@ -298,8 +298,9 @@ class ScienceAiChart extends StatelessWidget {
     List<Map<String, dynamic>> rows,
     FieldInfo? dimension,
     FieldInfo primary,
-    FieldInfo? secondary,
-  ) {
+    FieldInfo? secondary, {
+    String? numberLanguage,
+  }) {
     final samples = <(String actual, String predicted)>[];
     for (var i = 0; i < rows.length; i++) {
       final r = rows[i];
@@ -313,8 +314,8 @@ class ScienceAiChart extends StatelessWidget {
             (rawAct == null && secondary.missingMeans != 'zero')) {
           continue;
         }
-        final pred = valueText(rawPred, primary);
-        final act = valueText(rawAct, secondary);
+        final pred = valueText(rawPred, primary, language: numberLanguage);
+        final act = valueText(rawAct, secondary, language: numberLanguage);
         samples.add((act, pred));
       } else if (dimension != null) {
         final rawPred = r[primary.name];
@@ -322,8 +323,12 @@ class ScienceAiChart extends StatelessWidget {
             (rawPred == null && primary.missingMeans != 'zero')) {
           continue;
         }
-        final act = ChartParts.xLabel(r[dimension.name], dimension);
-        final pred = valueText(rawPred, primary);
+        final act = ChartParts.xLabel(
+          r[dimension.name],
+          dimension,
+          language: numberLanguage,
+        );
+        final pred = valueText(rawPred, primary, language: numberLanguage);
         samples.add((act, pred));
       }
     }
@@ -472,6 +477,7 @@ class ScienceAiChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
+    final numberLanguage = numberLanguageFor(context);
     if (page.rows.isEmpty || measures.isEmpty) return const SizedBox.shrink();
     final primary = measures.first;
     final secondary = measures.length > 1 ? measures[1] : null;
@@ -490,10 +496,10 @@ class ScienceAiChart extends StatelessWidget {
       );
       if (res.hasRoc) {
         summary =
-            'rocPr: ROC AUC ${res.rocAuc!.toStringAsFixed(2)} | PR AUC ${res.prAuc!.toStringAsFixed(2)} (${paired.length}/${subset.length})';
+            'rocPr: ROC AUC ${numberText(res.rocAuc!, 2, language: numberLanguage)} | PR AUC ${numberText(res.prAuc!, 2, language: numberLanguage)} (${paired.length}/${subset.length})';
       } else if (res.hasPr) {
         summary =
-            'rocPr: ${context.tr('roc_single_class_summary')} | PR AUC ${res.prAuc!.toStringAsFixed(2)} (${paired.length}/${subset.length})';
+            'rocPr: ${context.tr('roc_single_class_summary')} | PR AUC ${numberText(res.prAuc!, 2, language: numberLanguage)} (${paired.length}/${subset.length})';
       } else {
         summary =
             'rocPr: ${context.tr('roc_pr_unavailable_summary')} (${paired.length}/${subset.length})';
@@ -517,6 +523,7 @@ class ScienceAiChart extends StatelessWidget {
               secondary: secondary,
               palette: p,
               strings: chartStrings,
+              numberLanguage: numberLanguage,
             ),
           ),
         ),
@@ -585,6 +592,7 @@ class _ScienceAiPainter extends CustomPainter {
   final FieldInfo? secondary;
   final ReportPalette palette;
   final _ScienceChartStrings strings;
+  final String numberLanguage;
 
   const _ScienceAiPainter({
     required this.visual,
@@ -594,6 +602,7 @@ class _ScienceAiPainter extends CustomPainter {
     required this.secondary,
     required this.palette,
     required this.strings,
+    required this.numberLanguage,
   });
 
   void _drawText(
@@ -719,7 +728,7 @@ class _ScienceAiPainter extends CustomPainter {
       );
       _drawText(
         canvas,
-        '${(top[i].prob * 100).toStringAsFixed(1)}%',
+        '${numberText(top[i].prob * 100, 1, language: numberLanguage)}%',
         Offset(leftW + bw + 6, cy - 6),
         maxWidth: 42,
         color: palette.textMuted,
@@ -776,14 +785,14 @@ class _ScienceAiPainter extends CustomPainter {
     }
     _drawText(
       canvas,
-      '0.0',
+      numberText(0, 1, language: numberLanguage),
       Offset(6, plot.bottom - 6),
       maxWidth: 28,
       color: palette.textMuted,
     );
     _drawText(
       canvas,
-      '1.0',
+      numberText(1, 1, language: numberLanguage),
       Offset(6, plot.top - 4),
       maxWidth: 28,
       color: palette.textMuted,
@@ -873,21 +882,23 @@ class _ScienceAiPainter extends CustomPainter {
 
     _drawText(
       canvas,
-      '0.0',
+      numberText(0, 1, language: numberLanguage),
       Offset(6, plot.bottom - 6),
       maxWidth: 28,
       color: palette.textMuted,
     );
     _drawText(
       canvas,
-      '1.0',
+      numberText(1, 1, language: numberLanguage),
       Offset(6, plot.top - 4),
       maxWidth: 28,
       color: palette.textMuted,
     );
     final headerText = res.hasRoc
-        ? 'ROC AUC ${res.rocAuc!.toStringAsFixed(2)} | PR AUC ${res.prAuc!.toStringAsFixed(2)}'
-        : strings.rocSingleClassBanner(res.prAuc!.toStringAsFixed(2));
+        ? 'ROC AUC ${numberText(res.rocAuc!, 2, language: numberLanguage)} | PR AUC ${numberText(res.prAuc!, 2, language: numberLanguage)}'
+        : strings.rocSingleClassBanner(
+            numberText(res.prAuc!, 2, language: numberLanguage),
+          );
     _drawText(
       canvas,
       headerText,
@@ -912,6 +923,7 @@ class _ScienceAiPainter extends CustomPainter {
       dimension,
       primary,
       secondary,
+      numberLanguage: numberLanguage,
     );
     if (cm.total == 0 || cm.labels.isEmpty) {
       _paintUnavailable(canvas, size, strings.confusionMatrixUnavailable);
@@ -1033,14 +1045,14 @@ class _ScienceAiPainter extends CustomPainter {
     }
     _drawText(
       canvas,
-      minV.toStringAsFixed(2),
+      numberText(minV, 2, language: numberLanguage),
       Offset(4, plot.bottom - 6),
       maxWidth: 32,
       color: palette.textMuted,
     );
     _drawText(
       canvas,
-      maxV.toStringAsFixed(2),
+      numberText(maxV, 2, language: numberLanguage),
       Offset(4, plot.top - 4),
       maxWidth: 32,
       color: palette.textMuted,
@@ -1109,28 +1121,28 @@ class _ScienceAiPainter extends CustomPainter {
     }
     _drawText(
       canvas,
-      thetaMin.toStringAsFixed(0),
+      numberText(thetaMin, 0, language: numberLanguage),
       Offset(plot.left - 4, plot.bottom + 4),
       maxWidth: 32,
       color: palette.textMuted,
     );
     _drawText(
       canvas,
-      thetaMax.toStringAsFixed(0),
+      numberText(thetaMax, 0, language: numberLanguage),
       Offset(plot.right - 20, plot.bottom + 4),
       maxWidth: 32,
       color: palette.textMuted,
     );
     _drawText(
       canvas,
-      maxY.toStringAsFixed(1),
+      numberText(maxY, 1, language: numberLanguage),
       Offset(4, plot.top - 4),
       maxWidth: 30,
       color: palette.textMuted,
     );
     _drawText(
       canvas,
-      '0.0',
+      numberText(0, 1, language: numberLanguage),
       Offset(4, plot.bottom - 6),
       maxWidth: 30,
       color: palette.textMuted,
@@ -1229,7 +1241,7 @@ class _ScienceAiPainter extends CustomPainter {
       );
       _drawText(
         canvas,
-        '${item.label} (${item.difficulty.toStringAsFixed(1)})',
+        '${item.label} (${numberText(item.difficulty, 1, language: numberLanguage)})',
         Offset(cx + 18, y - 6),
         maxWidth: math.max(40.0, size.width - cx - 22),
       );
@@ -1296,14 +1308,14 @@ class _ScienceAiPainter extends CustomPainter {
     }
     _drawText(
       canvas,
-      'b=${min1.toStringAsFixed(1)}',
+      'b=${numberText(min1, 1, language: numberLanguage)}',
       Offset(plot.left, plot.bottom + 4),
       maxWidth: 44,
       color: palette.textMuted,
     );
     _drawText(
       canvas,
-      'b=${max1.toStringAsFixed(1)}',
+      'b=${numberText(max1, 1, language: numberLanguage)}',
       Offset(plot.right - 40, plot.bottom + 4),
       maxWidth: 44,
       color: palette.textMuted,
@@ -1360,21 +1372,21 @@ class _ScienceAiPainter extends CustomPainter {
     );
     _drawText(
       canvas,
-      '1.0',
+      numberText(1, 1, language: numberLanguage),
       Offset(6, plot.top - 4),
       maxWidth: 28,
       color: palette.textMuted,
     );
     _drawText(
       canvas,
-      '0.0',
+      numberText(0, 1, language: numberLanguage),
       Offset(6, plot.bottom - 6),
       maxWidth: 28,
       color: palette.textMuted,
     );
     _drawText(
       canvas,
-      't=${maxT.toStringAsFixed(0)}',
+      't=${numberText(maxT, 0, language: numberLanguage)}',
       Offset(plot.right - 36, plot.bottom + 4),
       maxWidth: 40,
       color: palette.textMuted,
@@ -1386,5 +1398,6 @@ class _ScienceAiPainter extends CustomPainter {
       old.visual != visual ||
       old.rows != rows ||
       old.palette != palette ||
+      old.numberLanguage != numberLanguage ||
       old.strings.localeTag != strings.localeTag;
 }
