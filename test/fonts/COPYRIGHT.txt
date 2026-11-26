@@ -1,0 +1,17 @@
+UbuntuSans-Variable.ttf
+Copyright 2011, 2022, 2023 Canonical Ltd. Licensed under the Ubuntu Font Licence 1.0
+License copy: LICENSE-UFL-1.0.txt
+
+UbuntuSans-Italic-Variable.ttf
+Copyright 2011, 2022, 2023 Canonical Ltd. Licensed under the Ubuntu Font Licence 1.0
+License copy: LICENSE-UFL-1.0.txt
+
+UbuntuSansMono-Variable.ttf
+Copyright 2011, 2022, 2023 Canonical Ltd.  Licensed under the Ubuntu Font Licence 1.0
+License copy: LICENSE-UFL-1.0.txt
+
+IBMPlexSansThai-Regular.ttf
+IBMPlexSansThai-SemiBold.ttf
+Copyright 2019 IBM Corp. All rights reserved.
+This Font Software is licensed under the SIL Open Font License, Version 1.1. This license is available with a FAQ at: http://scripts.sil.org/OFL
+License copy: LICENSE-OFL-1.1.txt
