@@ -404,7 +404,14 @@ void main() {
     for (final id in relationIds)
       (id, 'category', 'string', 'item', 1, id == 'ternary' ? 3 : 2),
     for (final id in diagramIds)
-      (id, 'category', 'string', 'item', id == 'sankey' ? 2 : 1, 1),
+      (
+        id,
+        'category',
+        'string',
+        'item',
+        id == 'sankey' || id == 'arc_diagram' ? 2 : 1,
+        1,
+      ),
     for (final id in setsIds) (id, 'category', 'string', 'item', 1, 1),
     for (final id in geoIds) (id, 'category', 'string', 'item', 1, 1),
     for (final id in indicatorIds) (id, 'category', 'string', 'item', 1, 1),

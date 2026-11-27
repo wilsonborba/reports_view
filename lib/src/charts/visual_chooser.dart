@@ -30,6 +30,13 @@ class VisualChooser {
   static List<FieldInfo> dimensions(DatasetDescriptor d) =>
       d.fields.where((f) => f.isDimension).toList();
 
+  /// Explicit slot dimensions take precedence; an empty list preserves the
+  /// descriptor-order behavior used by legacy, unbound callers.
+  static List<FieldInfo> _slotDimensions(DatasetDescriptor d, Slot slot) {
+    if (slot.dimensions.isEmpty) return dimensions(d);
+    return [for (final name in slot.dimensions) ?d.field(name)];
+  }
+
   static List<FieldInfo> measures(DatasetDescriptor d) => d.fields
       .where((f) => !f.isDimension && f.isNumeric && !_geo.contains(f.type))
       .toList();
@@ -308,6 +315,7 @@ class VisualChooser {
     String? subtitle,
     String? snapshotDate,
     bool showAxisTitles = true,
+    ChartFrameState? frameState,
     bool full = false,
     double? height,
     double? frame,
@@ -383,13 +391,13 @@ class VisualChooser {
         );
       }
     }
-    final frameState = page.rows.isEmpty
-        ? ChartFrameState.empty
-        : ChartFrameState.ready;
+    final state =
+        frameState ??
+        (page.rows.isEmpty ? ChartFrameState.empty : ChartFrameState.ready);
     return ChartFrame(
       page: page,
       mode: mode,
-      state: frameState,
+      state: state,
       title: title,
       subtitle: subtitle,
       snapshotDate: snapshotDate,
@@ -397,7 +405,7 @@ class VisualChooser {
       onSeeAll: onSeeAll,
       onRetry: onRetry,
       fixedHeight: height,
-      child: frameState == ChartFrameState.ready
+      child: state == ChartFrameState.ready || state == ChartFrameState.offline
           ? build(page, slot, full: full, frame: frame)
           : const SizedBox.shrink(),
     );
@@ -430,7 +438,7 @@ class VisualChooser {
   static Visual resolve(DatasetPage page, Slot slot) {
     final d = page.descriptor;
     final visual = slot.visual == Visual.auto ? auto(page) : slot.visual;
-    final dims = dimensions(d);
+    final dims = _slotDimensions(d, slot);
     final ms = slotMeasures(d, slot);
     final fits = switch (visual) {
       Visual.kpi || Visual.table || Visual.auto => true,
@@ -462,7 +470,7 @@ class VisualChooser {
     double frame = 640,
   }) {
     final d = page.descriptor;
-    final dims = dimensions(d);
+    final dims = _slotDimensions(d, slot);
     final ms = slotMeasures(d, slot);
     switch (visual) {
       case Visual.kpi:

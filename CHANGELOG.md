@@ -10,6 +10,7 @@
 
 ### 🐛 Bug Fixes
 
+- *(templates)* Honor bound category dimensions and preserve explicit chart frame state
 - *(diagrams,sets)* Apply ReportPalette fontFamily + Thai fallback and realistic diagram fixtures (#60)
 - *(sets)* Non-overlapping Venn/Euler outer labels, Euler disjointness, UpSet intersections (#61)
 - *(catalog)* Compute science curves, fix KPI regression, add Natural Earth maps
